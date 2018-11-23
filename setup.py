@@ -14,21 +14,12 @@ setup(
     version='0.1',
     packages=find_packages(exclude=['tests']),
     install_requires=[
-        'aiodns',
-        'aiohttp',
-        'beautifulsoup4',
-        'boto3',
-        'chardet',
-        'click',
-        'feedparser',
-        'lxml',
-        'python-dateutil',
-        'uwsgi',
-        'blkct',
+        'aiodns', 'aiohttp', 'beautifulsoup4', 'boto3', 'chardet', 'click', 'feedparser', 'lxml', 'python-dateutil',
+        'werkzeug'
     ],
     entry_points={
         'console_scripts': [
-            'blkct=blkct.__main__:cli_main',
+            'blkct=blkct.__main__:blackcat',
         ],
     },
     extras_require={

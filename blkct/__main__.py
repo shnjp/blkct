@@ -1,58 +1,67 @@
 # -*- coding:utf-8 -*-
+import asyncio
 import importlib
-import os
+import json
+import re
 
 import click
 
-# from blkct.environment import OTCrawlerEnvironment
+from .blackcat import Blackcat
 from .logging import init_logging, logger
 
-# _PREFIX = 'BLKCT_'
-# ENV_CONFIG = '{}_CONFIG'.format(_PREFIX)
-# ENV_DEBUG = '{}_DEBUG'.format(_PREFIX)
-# DEFAULT_CONFIG_FILE_NAME = 'otcrawler.ini'
+
+def easy_json_loads(s):
+    """json.loadsだけど、'{}'がついてなければ追加する"""
+    if not s.startswith('{'):
+        s = f'{{{s}}}'
+    return json.loads(s)
 
 
-@click.group()
-# @click.option('--config', '-c', type=click.Path(exists=True), envvar=ENV_CONFIG, default=DEFAULT_CONFIG_FILE_NAME)
-@click.option('--debug', is_flag=True)
-@click.pass_context
-def cli_main(ctx: click.Context, debug: bool) -> None:
-    """otcrawler management commands
-
-    :param Context ctx: Context
+@click.command(context_settings=dict(ignore_unknown_options=True))
+@click.option('--workers', default=4, type=int)
+def _make_asyncio_scheduler(workers, **kwargs):
     """
-
-    init_logging(debug=debug)
-    logger.info('Start blkct; debug=%r', debug)
-    # env = OTCrawlerEnvironment(config, debug=debug)
-    # ctx.obj = env
-
-
-def _import_subcommands() -> None:
-    cli_dir = os.path.join(os.path.split(__file__)[0], 'cli')
-    for fn in os.listdir(cli_dir):
-        file_path = os.path.join(cli_dir, fn)
-        if os.path.isdir(file_path) and os.path.exists(os.path.join(file_path, '__init__.py')):
-            module_name = fn
-        elif os.path.isfile(file_path) and fn.endswith('.py') and not fn.startswith('__'):
-            module_name = fn.split('.', 1)[0]
-        else:
-            continue
-
-        try:
-            mod = importlib.import_module('blkct.cli.{}'.format(module_name), __name__)
-        except ImportError:
-            logger.exception(f'failed to import module `{module_name}`')
-            continue
-
-        try:
-            group = getattr(mod, 'cli_{}'.format(module_name))
-        except AttributeError:
-            pass
-        else:
-            cli_main.add_command(group)
+    内部用コマンド
+    asyncioを使ったスケジューラを作成する
+    """
+    from .scheduler.asyncio_scheduler import AsyncIOScheduler
+    return AsyncIOScheduler(num_workers=workers)
 
 
-_import_subcommands()
-del _import_subcommands
+@click.command(context_settings=dict(auto_envvar_prefix='BLKCT', ignore_unknown_options=True))
+@click.option('--scheduler', default='asyncio')
+@click.option('-m', '--module', 'modules', multiple=True)
+@click.option('-v', '--verbose', is_flag=True)
+@click.option('--user-agent')
+@click.argument('planner')
+@click.argument('argument', default=None, type=easy_json_loads, required=False)
+@click.pass_context
+def blackcat(ctx, planner, argument=None, scheduler='asyncio', modules=[], verbose=False, user_agent=None):
+    """
+    blackcat
+    """
+    # TODO: schedulerサブコマンドのhelpをprint出来るように
+    init_logging(verbose=verbose)
+
+    # schedulerを読み込む。
+    if not re.match(r'\w+', scheduler):
+        raise click.BadParameter('bad scheduler name')
+
+    # make blackcat
+    blackcat = Blackcat(
+        scheduler_factory=lambda: ctx.forward(globals()[f'_make_{scheduler}_scheduler']), user_agent=user_agent
+    )
+
+    # load planners/parsers
+    with blackcat.setup():
+        for module in modules:
+            logger.info(f'Load module {module}')
+            importlib.import_module(module)
+
+    # run
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(blackcat.run_with_session(planner, **({} if argument is None else argument)))
+
+
+if __name__ == '__main__':
+    blackcat()

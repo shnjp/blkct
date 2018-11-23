@@ -49,7 +49,7 @@ if has_colorama:
             return cast(str, self._style.format(record) + colorama.Style.RESET_ALL)
 
 
-def init_logging(debug: bool) -> None:
+def init_logging(verbose: bool) -> None:
     if sys.stderr.isatty():
         # if we are attached to tty, use colorful.
         fh = logging.StreamHandler(sys.stderr)
@@ -60,10 +60,10 @@ def init_logging(debug: bool) -> None:
             fh.setFormatter(logging.Formatter('%(levelname)s %(asctime)s %(name)s : %(message)s',))
         root_logger = logging.getLogger()
         root_logger.addHandler(fh)
-        root_logger.setLevel(logging.DEBUG if debug else logging.INFO)
+        root_logger.setLevel(logging.DEBUG if verbose else logging.WARN)
     else:
         # init logging
-        logging.basicConfig(level=logging.DEBUG if debug else logging.INFO)
+        logging.basicConfig(level=logging.DEBUG if verbose else logging.WARN)
 
 
 logger = logging.getLogger('blckt')

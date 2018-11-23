@@ -1,117 +1,113 @@
-# -*- coding:utf-8 -*-
-from __future__ import annotations
-
-import asyncio
-import enum
-import time
-from typing import Any, Awaitable, Callable, Dict, Generic, List, Optional, TypeVar, cast
+import contextlib
+import re
+from collections import namedtuple
+from typing import cast
 
 import aiohttp
-from aiohttp import CookieJar
-from aiohttp.client_reqrep import ClientResponse
 
-import asyncpool
+from yarl import URL
 
-from .exceptions import BadStatusCode, URLAlreadyInQueue
-from .logging import logger
-from .typing import URL
+from .globals import _setup_ctx_stack
+from .session import BlackcatSession
 
-USER_AGENT = 'Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1; .NET CLR 1.1.4322; InfoPath.1; .NET CLR 2.0.50727; '
-'.NET CLR 3.0.04425.00)'
+# a singleton sentinel value for parameter defaults
+_sentinel = object()
+ContentParserEntry = namedtuple('ContentParserEntry', ('pattern', 'parser'))
 
 
-class CrawlPrioirty(enum.IntEnum):
-    default = 1000
-    high = 500
-    low = 2000
-    image = 5000
+class Blackcat:
 
+    def __init__(self, scheduler_factory, user_agent=None):
+        self.planners = {}
+        self.content_parsers = []
+        self.scheduler_factory = scheduler_factory
+        self.session = None
+        self.user_agent = user_agent or 'blkct crawler'
+        self.request_interval = 5.0
 
-PlanCallable = Callable[..., Awaitable[Any]]
-TParserResult = TypeVar('TParserResult')
-ParserCallable = Callable[[URL, ClientResponse, bytes], TParserResult]
+    # public
+    def register_planner(self, f, name=None):
+        if not name:
+            name = f.__name__
+        if name in self.planners:
+            raise ValueError(f'planner `{name}` is already registered.')
+        self.planners[name] = f
 
+    def register_content_parser(self, url_pattern, re_flags, f):
+        pattern = re.compile(url_pattern, re_flags)
+        self.content_parsers.append(ContentParserEntry(pattern, f))
 
-class Terminator:
-    pass
+    def setup(self):
+        return SetupContext(self)
 
+    @contextlib.asynccontextmanager
+    async def start_session(self):
+        if self.session:
+            raise ValueError('session is already started')
+        self.session = BlackcatSession(self, self.scheduler_factory())
+        try:
+            yield self.session
+        finally:
+            await self.session.close()
+            self.session = None
 
-# parserによって、T型は違うんだからクラスレベルでTParserResultとかするのはまずいのでは
-class Blackcat(Generic[TParserResult]):
-    aio_session: Optional[aiohttp.ClientSession]
-    last_request: Optional[float]
-    task_pool: asyncpool.PriorityAsyncPool
-    queued_urls: Dict[URL, bool]
+    async def run_with_session(self, planner: str, **args):
+        async with self.start_session() as session:
+            await session.dispatch(planner, **args)
+            await session.scheduler.run()
 
-    def __init__(self, num_workers: int = 1, user_agent: Optional[str] = None):
-        self.aio_session = None
-        self.num_workers = num_workers
-        self.queued_urls = {}
-        self.last_request = None
-        self.request_interval = 2  # 最低リクエスト間隔
-        self.user_agent = user_agent or USER_AGENT
-        self.task_pool = asyncpool.PriorityAsyncPool(
-            None, self.num_workers, 'Blackcat', logger, self.crawl_url, load_factor=0, return_futures=True
-        )
+    # internal
+    def get_content_parsers_by_url(self, url: URL):
+        if url.scheme not in ('http', 'https'):
+            raise ValueError(f'Bad URL `{url}`')
 
-    async def crawl(
-        self,
-        url: URL,
-        parser: ParserCallable,
-        priority: CrawlPrioirty = CrawlPrioirty.default,
-        check_status: bool = True
-    ) -> TParserResult:
-        """
-        クロールしたいURLとそれに対応するパーザを登録する。 parse結果が返される
-        """
-        assert isinstance(url, str)
-        assert self.task_pool is not None
+        found = []
+        for pattern, parser in self.content_parsers:
+            mo = pattern.match(str(url))
+            if mo:
+                found.append((mo, parser))
 
-        if url in self.queued_urls:
-            logger.warning('`%s` is already in queue', url)
-            raise URLAlreadyInQueue
-
-        logger.info('put %s (queue: %d / %d)', url, len(self.queued_urls), self.task_pool._queue.qsize())
-        self.queued_urls[url] = True
-
-        future = await self.task_pool.push_with_priority(priority, url, parser, check_status=check_status)
-        assert future is not None
-        return cast(TParserResult, await future)
-
-    async def run(self, plan: PlanCallable, **plan_args: List[Any]) -> None:
-        assert self.task_pool.is_empty()
-        assert self.aio_session is None
-        self.aio_session = self.make_aio_session()
-        assert self.aio_session is not None
-
-        async with self.aio_session, self.task_pool:
-            await plan(self, **plan_args)
-
-        self.aio_session.close()
-
-    async def crawl_url(self, url: URL, parser: ParserCallable, check_status: bool) -> TParserResult:
-        """
-        task poolから呼び出されるようのメソッド
-        """
-        assert self.aio_session is not None
-        logger.info('crawl_url %s', url)
-
-        now = time.time()
-        if self.last_request and self.last_request + self.request_interval > now:
-            wait = (self.last_request + self.request_interval) - now
-            logger.debug('sleep %f secs', wait)
-            await asyncio.sleep(wait)
-
-        self.queued_urls.pop(url)
-        self.last_request = time.time()
-        async with self.aio_session.get(url) as resp:
-            if check_status:
-                if resp.status != 200:
-                    raise BadStatusCode(resp.status)
-
-            return cast(TParserResult, parser(url, resp, await resp.read()))
+        if len(found) > 2:
+            raise Exception(f'Multiple parser found for url `{url}`')
+        elif not found:
+            raise Exception(f'No parser found for url `{url}`')
+        mo, parser = found[0]
+        return parser, mo.groupdict()
 
     def make_aio_session(self) -> aiohttp.ClientSession:
         """aiohttp.ClientSessionを作って返す"""
-        session = aiohttp.ClientSession(cookie_jar=CookieJar(), headers={'User-Agent': self.user_agent})  # type: ignore
+        session = aiohttp.ClientSession(
+            cookie_jar=aiohttp.CookieJar(), headers={'User-Agent': self.user_agent}
+        )  # type: ignore
         return cast(aiohttp.ClientSession, session)
+
+
+class SetupContext:
+
+    def __init__(self, blackcat):
+        self.blackcat = blackcat
+
+    def push(self):
+        """Binds the app context to the current context."""
+        _setup_ctx_stack.push(self)
+
+    def pop(self, exc=_sentinel):
+        """Pops the app context."""
+        rv = _setup_ctx_stack.pop()
+        assert rv is self, f'Popped wrong app context.  ({rv!r} instead of {self!r})'
+
+    def __enter__(self):
+        self.push()
+        return self
+
+    def __exit__(self, exc_type, exc_value, tb):
+        self.pop(exc_value)
+
+        if exc_type is not None:
+            reraise(exc_type, exc_value, tb)
+
+
+def reraise(tp, value, tb=None):
+    if value.__traceback__ is not tb:
+        raise value.with_traceback(tb)
+    raise value
