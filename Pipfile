@@ -3,9 +3,31 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 name = "pypi"
 
+[scripts]
+lint = "flake8"
+lint_fix = "sh -c 'autopep8 -ir . && yapf -ir . -e .venv'"
+
 [packages]
+aiodns = "*"
+aiohttp = "*"
+beautifulsoup4 = "*"
+boto3 = "*"
+chardet = "*"
+click = "*"
+feedparser = "*"
+lxml = "*"
+python-dateutil = "*"
+uwsgi = "*"
+blkct = {editable = true,path = "."}
 
 [dev-packages]
+coverage = "*"
+flake8 = "*"
+flake8-import-order = "*"
+pytest = "*"
+yapf = "*"
+pipenv = "*"
+autopep8 = "*"
 
 [requires]
 python_version = "3.6"

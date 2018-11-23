@@ -4,8 +4,8 @@ import importlib
 
 import click
 
-from blkct.logging import logger
-from blkct.blackcat import Blackcat
+from ..blackcat import Blackcat
+from ..logging import logger
 
 
 @click.command('crawl', context_settings=dict(allow_extra_args=True, ignore_unknown_options=True))

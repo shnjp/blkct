@@ -2,6 +2,7 @@
 import logging
 import sys
 from typing import cast
+
 from typing_extensions import Protocol
 
 try:
@@ -9,7 +10,6 @@ try:
     has_colorama = True
 except ImportError:
     has_colorama = False
-
 
 if has_colorama:
 
@@ -38,8 +38,9 @@ if has_colorama:
         def formatMessage(self, record: NiceColoredLogRecord) -> str:  # noqa
             assert isinstance(record, logging.LogRecord)
 
-            record.nice_levelname = self._colored(self.level_color_map[record.levelname],
-                                                  '[{}]'.format(self.short_levelname_map[record.levelname]))
+            record.nice_levelname = self._colored(
+                self.level_color_map[record.levelname], '[{}]'.format(self.short_levelname_map[record.levelname])
+            )
             record.nice_name = self._colored(self.name_color, record.name)
             if hasattr(record, 'asctime'):
                 record.asctime = self._colored(self.asctime_color, record.asctime)

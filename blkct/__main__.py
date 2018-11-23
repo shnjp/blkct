@@ -5,7 +5,7 @@ import os
 import click
 
 # from blkct.environment import OTCrawlerEnvironment
-from blkct.logging import init_logging, logger
+from .logging import init_logging, logger
 
 # _PREFIX = 'BLKCT_'
 # ENV_CONFIG = '{}_CONFIG'.format(_PREFIX)

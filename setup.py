@@ -1,7 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+# from pipenv.project import Project
+# from pipenv.utils import convert_deps_to_pip
 from setuptools import find_packages, setup
+
+# pfile = Project(chdir=False).parsed_pipfile
+# requirements = convert_deps_to_pip(pfile['packages'], r=False)
+# test_requirements = convert_deps_to_pip(pfile['dev-packages'], r=False)
 
 setup(
     name='blkct',
@@ -18,6 +24,7 @@ setup(
         'lxml',
         'python-dateutil',
         'uwsgi',
+        'blkct',
     ],
     entry_points={
         'console_scripts': [
@@ -25,11 +32,15 @@ setup(
         ],
     },
     extras_require={
-        'test': [
+        'dev': [
             'coverage',
             'flake8',
             'flake8-import-order',
             'pytest',
             'yapf',
+            'pipenv',
+            'autopep8',
+            'isort',
         ],
-    })
+    }
+)

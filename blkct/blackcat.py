@@ -4,17 +4,17 @@ from __future__ import annotations
 import asyncio
 import enum
 import time
-from typing import cast, Any, Awaitable, Callable, Dict, Generic, List, Optional, TypeVar
+from typing import Any, Awaitable, Callable, Dict, Generic, List, Optional, TypeVar, cast
 
 import aiohttp
 from aiohttp import CookieJar
+from aiohttp.client_reqrep import ClientResponse
+
 import asyncpool
 
-from blkct import ClientResponse
 from .exceptions import BadStatusCode, URLAlreadyInQueue
 from .logging import logger
 from .typing import URL
-
 
 USER_AGENT = 'Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1; .NET CLR 1.1.4322; InfoPath.1; .NET CLR 2.0.50727; '
 '.NET CLR 3.0.04425.00)'
@@ -54,8 +54,13 @@ class Blackcat(Generic[TParserResult]):
             None, self.num_workers, 'Blackcat', logger, self.crawl_url, load_factor=0, return_futures=True
         )
 
-    async def crawl(self, url: URL, parser: ParserCallable, priority: CrawlPrioirty = CrawlPrioirty.default,
-                    check_status: bool = True) -> TParserResult:
+    async def crawl(
+        self,
+        url: URL,
+        parser: ParserCallable,
+        priority: CrawlPrioirty = CrawlPrioirty.default,
+        check_status: bool = True
+    ) -> TParserResult:
         """
         クロールしたいURLとそれに対応するパーザを登録する。 parse結果が返される
         """
