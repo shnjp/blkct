@@ -1,12 +1,12 @@
 from aiohttp.client_reqrep import ClientResponse
 
 from .exceptions import *  # noqa
-from .spider import CrawlPrioirty, Spider
+from .blackcat import CrawlPrioirty, Blackcat
 from .typing import URL
 
 
 __all__ = (
-    'CrawlPrioirty', 'Spider', 'URL',
+    'CrawlPrioirty', 'Blackcat', 'URL',
     'CrawlerError', 'URLAlreadyInQueue', 'BadStatusCode', 'ParserError',
     # from aiohttp
     'ClientResponse'

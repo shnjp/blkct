@@ -37,7 +37,7 @@ class Terminator:
 
 
 # parserによって、T型は違うんだからクラスレベルでTParserResultとかするのはまずいのでは
-class Spider(Generic[TParserResult]):
+class Blackcat(Generic[TParserResult]):
     aio_session: Optional[aiohttp.ClientSession]
     last_request: Optional[float]
     task_pool: asyncpool.PriorityAsyncPool
@@ -51,7 +51,7 @@ class Spider(Generic[TParserResult]):
         self.request_interval = 2  # 最低リクエスト間隔
         self.user_agent = user_agent or USER_AGENT
         self.task_pool = asyncpool.PriorityAsyncPool(
-            None, self.num_workers, 'OTSpider', logger, self.crawl_url, load_factor=0, return_futures=True
+            None, self.num_workers, 'Blackcat', logger, self.crawl_url, load_factor=0, return_futures=True
         )
 
     async def crawl(self, url: URL, parser: ParserCallable, priority: CrawlPrioirty = CrawlPrioirty.default,

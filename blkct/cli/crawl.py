@@ -5,7 +5,7 @@ import importlib
 import click
 
 from blkct.logging import logger
-from blkct.spider import Spider
+from blkct.blackcat import Blackcat
 
 
 @click.command('crawl', context_settings=dict(allow_extra_args=True, ignore_unknown_options=True))
@@ -33,7 +33,7 @@ def cli_crawl(ctx, plan):
 
     plan = getattr(mod, 'run_{}'.format(plan_name))
 
-    spider = Spider()
+    blackcat = Blackcat()
 
     ioloop = asyncio.get_event_loop()
-    ioloop.run_until_complete(spider.run(plan, **plan_args))
+    ioloop.run_until_complete(blackcat.run(plan, **plan_args))
