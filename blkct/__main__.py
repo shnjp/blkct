@@ -5,40 +5,30 @@ import asyncio
 import importlib
 import itertools
 import json
+import os
 import sys
 from gettext import gettext as _
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, TypeVar, cast
 
 from .blackcat import Blackcat
 from .logging import init_logging, logger
 from .utils import make_new_session_id
 
 if TYPE_CHECKING:
-    from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple, Union, Sequence
+    from typing import Any, Callable, Dict, List, Optional, Tuple, Union, Sequence
 
     from .typing import ContentStoreFactory, ContentStore, Scheduler, SchedulerFactory
 
+DefaultT = TypeVar('DefaultT')
 SCHEDULER_FACTORIES: Dict[str, Tuple[Callable[[], argparse.ArgumentParser], Callable[[argparse.
                                                                                       Namespace], Scheduler]]] = {}
 CONTENT_STORE_FACTORIES: Dict[str, Tuple[Callable[[], argparse.
                                                   ArgumentParser], Callable[[argparse.Namespace], ContentStore]]] = {}
 
 
-def easy_json_loads(s: str) -> Mapping[str, Any]:
-    """json.loadsだけど、'{}'がついてなければ追加する"""
-    print('!?', s)
-    if not s.startswith('{'):
-        s = f'{{{s}}}'
-    rv = json.loads(s)
-    for key in rv:
-        if not isinstance(key, str):
-            raise ValueError(f'key {key} is not str')
-    return cast(Mapping[str, Any], rv)
-
-
 # AsyncIOScheduler
 def _make_asyncio_scheduler_argparser() -> argparse.ArgumentParser:
-    return argparse.ArgumentParser(prog='AsyncIO Scheduler', add_help=False)
+    return make_argument_parser(prog='AsyncIO Scheduler')
 
 
 def _make_asyncio_scheduler(args: argparse.Namespace) -> Scheduler:
@@ -58,7 +48,7 @@ SCHEDULER_FACTORIES['asyncio'] = _make_asyncio_scheduler_argparser, _make_asynci
 
 # AWSBatchScheduler
 def _make_awsbatch_scheduler_argparser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog='AWSBatch Scheduler', add_help=False)
+    parser = make_argument_parser(prog='AWSBatch Scheduler')
     parser.add_argument('--job-name')
     parser.add_argument('--job-queue')
     return parser
@@ -76,8 +66,8 @@ SCHEDULER_FACTORIES['awsbatch'] = _make_awsbatch_scheduler_argparser, _make_awsb
 
 # FileContentStore
 def _make_file_content_store_argparser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog='File Content Store', add_help=False)
-    parser.add_argument('--content-store-path')
+    parser = make_argument_parser(prog='File Content Store')
+    parser.add_argument('--content-store-path', default=default_or_environ('BLKCT_CONTENT_STORE_PATH', '/tmp/blkct'))
 
     return parser
 
@@ -99,7 +89,7 @@ CONTENT_STORE_FACTORIES['file'] = _make_file_content_store_argparser, _make_file
 
 # S3ContentSTore
 def _make_s3_content_store_argparser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog='S3 Content Store', add_help=False)
+    parser = make_argument_parser(prog='S3 Content Store')
     parser.add_argument('--s3-bucket')
 
     return parser
@@ -186,14 +176,27 @@ class BlackcatHelpAction(argparse.Action):
         parser.exit()
 
 
+def make_argument_parser(**kwargs: Any) -> argparse.ArgumentParser:
+    main_parser = argparse.ArgumentParser(add_help=False, **kwargs)
+    return main_parser
+
+
+def default_or_environ(env: str, default: Optional[DefaultT] = None) -> DefaultT:
+    return cast(DefaultT, os.environ.get(env, default))
+
+
 def parse_args(args: List[str]) -> Tuple[argparse.Namespace, argparse.Namespace, argparse.Namespace]:
-    main_parser = argparse.ArgumentParser(add_help=False)
-    main_parser.add_argument('--scheduler', default='asyncio')
-    main_parser.add_argument('--content-store', default='file')
-    main_parser.add_argument('-m', '--module', nargs='*', dest='modules')
-    main_parser.add_argument('--session-id')
-    main_parser.add_argument('-v', action='store_true', dest='verbose')
-    main_parser.add_argument('--user-agent')
+    main_parser = make_argument_parser()
+    main_parser.add_argument('--scheduler', default=default_or_environ('BLKCT_SCHEDULER', 'asyncio'))
+    main_parser.add_argument('--content-store', default=default_or_environ('BLKCT_CONTENT_STORE', 'file'))
+    main_parser.add_argument(
+        '-m', '--module', nargs='*', dest='modules', default=default_or_environ('BLKCT_MODULES', [])
+    )
+    main_parser.add_argument('--session-id', default=default_or_environ('BLKCT_SESSION_ID'))
+    main_parser.add_argument(
+        '-v', action='store_true', dest='verbose', required=False, default=default_or_environ('BLKCT_VERBOSE', False)
+    )
+    main_parser.add_argument('--user-agent', default=default_or_environ('BLKCT_USER_AGENT'))
     main_parser.add_argument('planner', metavar='PLANNER')
     main_parser.add_argument('argument', nargs='?', metavar='ARGUMENT')
     main_parser.add_argument('-h', '--help', action=BlackcatHelpAction, help=_('show this help message and exit'))
@@ -216,11 +219,20 @@ def main(args: Optional[List[str]] = None) -> None:
         args = sys.argv[1:]
     main_args, scheduler_args, content_store_args = parse_args(args)
 
+    # modulesが環境変数から来た場合、リストでなく、文字列なので治す
+    modules = main_args.modules
+    if isinstance(modules, str):
+        modules = modules.split(',')
+
+    argument = main_args.argument
+    if argument:
+        argument = json.loads(argument)
+
     # make blackcat
     blackcat(
         lambda: SCHEDULER_FACTORIES[main_args.scheduler][1](scheduler_args),
-        lambda: CONTENT_STORE_FACTORIES[main_args.content_store][1](content_store_args), main_args.planner,
-        main_args.argument, main_args.modules, main_args.session_id, main_args.verbose, main_args.user_agent
+        lambda: CONTENT_STORE_FACTORIES[main_args.content_store][1](content_store_args), main_args.planner, argument,
+        modules, main_args.session_id, main_args.verbose, main_args.user_agent
     )
 
 

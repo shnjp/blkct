@@ -24,7 +24,7 @@ class FileContentStore(ContentStore):
         self.store_root_path = store_root_path
 
     async def pull_content(self, session: BlackcatSession, url: URL) -> Optional[StoredContent]:
-        filepathpattern = url_to_path(os.path.join(self.store_root_path, session.session_id), url) + '*'
+        filepathpattern = url_to_path(os.path.join(self.store_root_path, session.session_id), url) + '.*'
         files = glob.glob(filepathpattern)
 
         if not files:
@@ -41,7 +41,8 @@ class FileContentStore(ContentStore):
             return StoredContent(content_type, fp.read())
 
     async def push_content(self, session: BlackcatSession, url: URL, content: FetchedContent) -> None:
-        ext = mimetypes.guess_extension(content.content_type)
+        ext = mimetypes.guess_extension(content.content_type) or '.bin'
+        assert ext and ext.startswith('.')
         filepath = url_to_path(os.path.join(self.store_root_path, session.session_id), url, ext)
         dirpath, filename = os.path.split(filepath)
         logger.info('save %s content to %s', url, filepath)
@@ -63,6 +64,6 @@ def url_to_path(base_dir_path: str, url: URL, extension: Optional[str] = None) -
     assert url.raw_path_qs.startswith('/')
     filepath = (url.raw_path_qs[1:].replace('_', '%5f').replace('/', '__').replace('?', '@@'))
     if extension:
-        filepath += f'.{extension}'
+        filepath += extension
 
     return os.path.join(base_dir_path, f'{url.scheme}:{url.host}:{url.port}', filepath)
