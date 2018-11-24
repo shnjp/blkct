@@ -10,6 +10,7 @@ import click
 
 from .blackcat import Blackcat
 from .logging import init_logging, logger
+from .utils import make_new_session_id
 
 if TYPE_CHECKING:
     from typing import Any, Dict, List, Mapping, Optional
@@ -43,6 +44,7 @@ def _make_asyncio_scheduler(workers: int, **kwargs: Dict[str, Any]) -> Scheduler
 @click.option('--scheduler', default='asyncio')
 @click.option('-m', '--module', 'modules', multiple=True)
 @click.option('-v', '--verbose', is_flag=True)
+@click.option('--session-id')
 @click.option('--user-agent')
 @click.argument('planner')
 @click.argument('argument', default=None, type=easy_json_loads, required=False)
@@ -53,6 +55,7 @@ def blackcat(
     argument: Optional[Dict[str, Any]] = None,
     scheduler: str = 'asyncio',
     modules: List[str] = [],
+    session_id: Optional[str] = None,
     verbose: bool = False,
     user_agent: Optional[str] = None
 ) -> None:
@@ -78,9 +81,14 @@ def blackcat(
             logger.info(f'Load module {module}')
             importlib.import_module(module)
 
+    # make session id
+    session_id = session_id or make_new_session_id()
+
     # run
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(blackcat.run_with_session(planner, **({} if argument is None else argument)))
+    loop.run_until_complete(
+        blackcat.run_with_session(planner, {} if argument is None else argument, session_id)
+    )
 
 
 if __name__ == '__main__':

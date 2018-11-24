@@ -9,11 +9,12 @@ import aiohttp
 from yarl import URL
 
 from .globals import _setup_ctx_stack
+from .logging import logger
 from .session import BlackcatSession
 
 if TYPE_CHECKING:
     from types import TracebackType
-    from typing import Any, AsyncGenerator, Callable, Dict, List, Optional, Pattern, Tuple, Type, Union
+    from typing import Any, AsyncGenerator, Callable, Dict, List, Mapping, Optional, Pattern, Tuple, Type, Union
 
     from .typing import ContentParserType, PlannerType, Scheduler
 
@@ -58,10 +59,11 @@ class Blackcat:
         return SetupContext(self)
 
     @contextlib.asynccontextmanager
-    async def start_session(self) -> AsyncGenerator[BlackcatSession, None]:
+    async def start_session(self, session_id: Optional[str] = None) -> AsyncGenerator[BlackcatSession, None]:
         if self.session:
             raise ValueError('session is already started')
-        self.session = BlackcatSession(self, self.scheduler_factory())
+        self.session = BlackcatSession(self, self.scheduler_factory(), session_id=session_id)
+        logger.info('Start session(id=%s)', self.session.session_id)
         try:
             yield self.session
         finally:
@@ -69,8 +71,9 @@ class Blackcat:
                 await self.session.close()
             self.session = None
 
-    async def run_with_session(self, planner: str, **args: Any) -> None:
-        async with self.start_session() as session:
+    async def run_with_session(self, planner: str, args: Mapping[str, Any],
+                               session_id: str) -> None:
+        async with self.start_session(session_id=session_id) as session:
             await session.dispatch(planner, **args)
             await session.scheduler.run()
 

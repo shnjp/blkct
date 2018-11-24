@@ -23,12 +23,14 @@ class BlackcatSession:
     blackcat: Blackcat
     last_request_time_per_host: Dict[Tuple[str, int], float]
     scheduler: Scheduler
+    session_id: str
 
-    def __init__(self, blackcat: Blackcat, scheduler: Scheduler):
+    def __init__(self, blackcat: Blackcat, scheduler: Scheduler, session_id: str):
         self.blackcat = blackcat
         self.scheduler = scheduler
         self.aio_session = self.blackcat.make_aio_session()
         self.last_request_time_per_host = {}
+        self.session_id = session_id
 
     # public
     async def crawl(

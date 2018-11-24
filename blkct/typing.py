@@ -23,3 +23,7 @@ class Scheduler:
 
     async def run_once(self) -> None:
         raise NotImplementedError
+
+
+class ContentStore:
+    pass
