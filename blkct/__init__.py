@@ -1,4 +1,6 @@
-from typing import Callable, TypeVar
+from __future__ import annotations
+
+from typing import Callable, TYPE_CHECKING, TypeVar
 
 from yarl import URL
 
@@ -6,6 +8,9 @@ from .constants import CrawlPrioirty
 from .globals import current_blackcat
 # from .blackcat import Blackcat, CrawlPrioirty
 # from .exceptions import *  # noqa
+
+if TYPE_CHECKING:
+    from typing import Optional
 
 __all__ = (
     'CrawlPrioirty',
@@ -21,7 +26,7 @@ __all__ = (
 RT = TypeVar('RT')
 
 
-def register_planner(name: str = None) -> Callable[[Callable[..., RT]], Callable[..., RT]]:
+def register_planner(name: Optional[str] = None) -> Callable[[Callable[..., RT]], Callable[..., RT]]:
 
     def decorator(f: Callable[..., RT]) -> Callable[..., RT]:
         current_blackcat.register_planner(f, name)

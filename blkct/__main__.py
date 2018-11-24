@@ -1,25 +1,36 @@
-# -*- coding:utf-8 -*-
+from __future__ import annotations
+
 import asyncio
 import importlib
 import json
 import re
+from typing import TYPE_CHECKING, cast
 
 import click
 
 from .blackcat import Blackcat
 from .logging import init_logging, logger
 
+if TYPE_CHECKING:
+    from typing import Any, Dict, List, Mapping, Optional
 
-def easy_json_loads(s):
+    from .typing import Scheduler
+
+
+def easy_json_loads(s: str) -> Mapping[str, Any]:
     """json.loadsだけど、'{}'がついてなければ追加する"""
     if not s.startswith('{'):
         s = f'{{{s}}}'
-    return json.loads(s)
+    rv = json.loads(s)
+    for key in rv:
+        if not isinstance(key, str):
+            raise click.BadParameter(f'key {key} is not str')
+    return cast(Mapping[str, Any], rv)
 
 
 @click.command(context_settings=dict(ignore_unknown_options=True))
 @click.option('--workers', default=4, type=int)
-def _make_asyncio_scheduler(workers, **kwargs):
+def _make_asyncio_scheduler(workers: int, **kwargs: Dict[str, Any]) -> Scheduler:
     """
     内部用コマンド
     asyncioを使ったスケジューラを作成する
@@ -36,7 +47,15 @@ def _make_asyncio_scheduler(workers, **kwargs):
 @click.argument('planner')
 @click.argument('argument', default=None, type=easy_json_loads, required=False)
 @click.pass_context
-def blackcat(ctx, planner, argument=None, scheduler='asyncio', modules=[], verbose=False, user_agent=None):
+def blackcat(
+    ctx: click.Context,
+    planner: str,
+    argument: Optional[Dict[str, Any]] = None,
+    scheduler: str = 'asyncio',
+    modules: List[str] = [],
+    verbose: bool = False,
+    user_agent: Optional[str] = None
+) -> None:
     """
     blackcat
     """
@@ -48,9 +67,10 @@ def blackcat(ctx, planner, argument=None, scheduler='asyncio', modules=[], verbo
         raise click.BadParameter('bad scheduler name')
 
     # make blackcat
-    blackcat = Blackcat(
-        scheduler_factory=lambda: ctx.forward(globals()[f'_make_{scheduler}_scheduler']), user_agent=user_agent
-    )
+    def scheduler_factory() -> Scheduler:
+        return ctx.forward(globals()[f'_make_{scheduler}_scheduler'])
+
+    blackcat = Blackcat(scheduler_factory=scheduler_factory, user_agent=user_agent)
 
     # load planners/parsers
     with blackcat.setup():
