@@ -8,7 +8,7 @@ from yarl import URL
 from .content_store.content import Content, FetchedContent, StoredContent
 from .session import BlackcatSession
 
-__all__ = ('ContentParserType', 'PlannerType', 'Scheduler', 'URL')
+__all__ = ('ContentParserType', 'PlannerType', 'Scheduler', 'URL', 'SchedulerFactory', 'ContentStoreFactory')
 
 ContentParserType = Callable[[URL, Dict[str, str], Content], Any]
 PlannerType = Callable[..., Awaitable[Any]]
@@ -44,3 +44,7 @@ class ContentStore(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     async def push_content(self, session: BlackcatSession, url: URL, content: FetchedContent) -> None:
         raise NotImplementedError
+
+
+SchedulerFactory = Callable[[], Scheduler]
+ContentStoreFactory = Callable[[], ContentStore]

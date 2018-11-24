@@ -14,19 +14,14 @@ from .session import BlackcatSession
 
 if TYPE_CHECKING:
     from types import TracebackType
-    from typing import Any, AsyncGenerator, Callable, Dict, List, Mapping, Optional, Pattern, Tuple, Type, Union
+    from typing import Any, AsyncGenerator, Dict, List, Mapping, Optional, Pattern, Tuple, Type, Union
 
-    from .typing import ContentParserType, ContentStore, PlannerType, Scheduler
+    from .typing import ContentParserType, ContentStoreFactory, PlannerType, SchedulerFactory
 
 
 class ContentParserEntry(NamedTuple):
     pattern: Pattern[str]
     parse: ContentParserType
-
-
-if TYPE_CHECKING:
-    SchedulerFactory = Callable[[], Scheduler]
-    ContentStoreFactory = Callable[[], ContentStore]
 
 
 class Blackcat:
