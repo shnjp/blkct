@@ -3,8 +3,10 @@ from __future__ import annotations
 import argparse
 import asyncio
 import importlib
+import itertools
 import json
 import sys
+from gettext import gettext as _
 from typing import TYPE_CHECKING, cast
 
 from .blackcat import Blackcat
@@ -12,7 +14,7 @@ from .logging import init_logging, logger
 from .utils import make_new_session_id
 
 if TYPE_CHECKING:
-    from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple
+    from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple, Union, Sequence
 
     from .typing import ContentStoreFactory, ContentStore, Scheduler, SchedulerFactory
 
@@ -36,7 +38,7 @@ def easy_json_loads(s: str) -> Mapping[str, Any]:
 
 # AsyncIOScheduler
 def _make_asyncio_scheduler_argparser() -> argparse.ArgumentParser:
-    return argparse.ArgumentParser()
+    return argparse.ArgumentParser(prog='AsyncIO Scheduler', add_help=False)
 
 
 def _make_asyncio_scheduler(args: argparse.Namespace) -> Scheduler:
@@ -54,9 +56,27 @@ def _make_asyncio_scheduler(args: argparse.Namespace) -> Scheduler:
 SCHEDULER_FACTORIES['asyncio'] = _make_asyncio_scheduler_argparser, _make_asyncio_scheduler
 
 
+# AWSBatchScheduler
+def _make_awsbatch_scheduler_argparser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog='AWSBatch Scheduler', add_help=False)
+    parser.add_argument('--job-name')
+    parser.add_argument('--job-queue')
+    return parser
+
+
+def _make_awsbatch_scheduler(args: argparse.Namespace) -> Scheduler:
+    """
+    awsbatchを使ったスケジューラを作成する
+    """
+    raise NotImplementedError
+
+
+SCHEDULER_FACTORIES['awsbatch'] = _make_awsbatch_scheduler_argparser, _make_awsbatch_scheduler
+
+
 # FileContentStore
 def _make_file_content_store_argparser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(prog='File Content Store', add_help=False)
     parser.add_argument('--content-store-path')
 
     return parser
@@ -65,7 +85,7 @@ def _make_file_content_store_argparser() -> argparse.ArgumentParser:
 def _make_file_content_store(args: argparse.Namespace) -> ContentStore:
     """
     内部用コマンド
-    asyncioを使ったスケジューラを作成する
+    ローカルストレージに保存するContentStoreを作る
     """
     from .content_store.file_content_store import FileContentStore
 
@@ -75,6 +95,24 @@ def _make_file_content_store(args: argparse.Namespace) -> ContentStore:
 
 
 CONTENT_STORE_FACTORIES['file'] = _make_file_content_store_argparser, _make_file_content_store
+
+
+# S3ContentSTore
+def _make_s3_content_store_argparser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog='S3 Content Store', add_help=False)
+    parser.add_argument('--s3-bucket')
+
+    return parser
+
+
+def _make_s3_content_store(args: argparse.Namespace) -> ContentStore:
+    """
+    S3に保存するContentStoreを作る
+    """
+    raise NotImplementedError
+
+
+CONTENT_STORE_FACTORIES['s3'] = _make_s3_content_store_argparser, _make_s3_content_store
 
 
 # main
@@ -106,8 +144,50 @@ def blackcat(
     loop.run_until_complete(blackcat.run_with_session(planner, {} if argument is None else argument, session_id))
 
 
+class BlackcatHelpAction(argparse.Action):
+    """blkct本体と、scheduler, content storeの全Optionを出力するためのHelp Action"""
+
+    def __init__(
+        self,
+        option_strings: str,
+        dest: str = argparse.SUPPRESS,
+        default: Any = argparse.SUPPRESS,
+        help: Optional[str] = None
+    ):
+        super(BlackcatHelpAction, self).__init__(
+            option_strings=option_strings, dest=dest, default=default, nargs=0, help=help
+        )
+
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        namespace: argparse.Namespace,
+        values: Union[str, Sequence[Any], None],
+        option_string: Optional[str] = None
+    ) -> None:
+        parser.print_help()
+
+        formatter = parser._get_formatter()
+
+        # show submodule helps
+        for x, parser_factory in itertools.chain(
+            sorted((k, v[0]) for k, v in SCHEDULER_FACTORIES.items()),
+            sorted((k, v[0]) for k, v in CONTENT_STORE_FACTORIES.items())
+        ):
+            subparser = parser_factory()
+            formatter.start_section(f'{subparser.prog} options')
+            formatter.add_text(subparser.description)
+            formatter.add_arguments(subparser._optionals._group_actions)
+            formatter.end_section()
+
+        print('\n')
+        print(formatter.format_help())
+
+        parser.exit()
+
+
 def parse_args(args: List[str]) -> Tuple[argparse.Namespace, argparse.Namespace, argparse.Namespace]:
-    main_parser = argparse.ArgumentParser()
+    main_parser = argparse.ArgumentParser(add_help=False)
     main_parser.add_argument('--scheduler', default='asyncio')
     main_parser.add_argument('--content-store', default='file')
     main_parser.add_argument('-m', '--module', nargs='*', dest='modules')
@@ -116,6 +196,7 @@ def parse_args(args: List[str]) -> Tuple[argparse.Namespace, argparse.Namespace,
     main_parser.add_argument('--user-agent')
     main_parser.add_argument('planner', metavar='PLANNER')
     main_parser.add_argument('argument', nargs='?', metavar='ARGUMENT')
+    main_parser.add_argument('-h', '--help', action=BlackcatHelpAction, help=_('show this help message and exit'))
 
     main_args, args = main_parser.parse_known_args(args)
     scheduler_args, args = SCHEDULER_FACTORIES[main_args.scheduler][0]().parse_known_args(args)
