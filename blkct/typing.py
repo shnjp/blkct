@@ -1,29 +1,42 @@
-from typing import Any, Awaitable, Callable, Dict
+from __future__ import annotations
 
-# import aiohttp
-from aiohttp.client_reqrep import ClientResponse
+import abc
+from typing import Any, Awaitable, Callable, Dict, Optional
 
 from yarl import URL
 
+from .content_store.content import Content, StoredContent
 from .session import BlackcatSession
 
 __all__ = ('ContentParserType', 'PlannerType', 'Scheduler', 'URL')
 
-ContentParserType = Callable[[URL, Dict[str, str], ClientResponse, bytes], Any]
+ContentParserType = Callable[[URL, Dict[str, str], Content], Any]
 PlannerType = Callable[..., Awaitable[Any]]
 
 
-class Scheduler:
+class Scheduler(metaclass=abc.ABCMeta):
+    """
+    plannerのスケジューリングをする
+    """
 
+    @abc.abstractmethod
     async def dispatch(self, session: BlackcatSession, planner: str, args: Dict[str, str]) -> None:
         raise NotImplementedError
 
+    @abc.abstractmethod
     async def run(self) -> None:
         raise NotImplementedError
 
+    @abc.abstractmethod
     async def run_once(self) -> None:
         raise NotImplementedError
 
 
-class ContentStore:
-    pass
+class ContentStore(metaclass=abc.ABCMeta):
+    """
+    plannerのスケジューリングをする
+    """
+
+    @abc.abstractmethod
+    async def pull_content(self, session: BlackcatSession, url: URL) -> Optional[StoredContent]:
+        pass

@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from types import TracebackType
     from typing import Any, AsyncGenerator, Callable, Dict, List, Mapping, Optional, Pattern, Tuple, Type, Union
 
-    from .typing import ContentParserType, PlannerType, Scheduler
+    from .typing import ContentParserType, ContentStore, PlannerType, Scheduler
 
 
 class ContentParserEntry(NamedTuple):
@@ -26,17 +26,26 @@ class ContentParserEntry(NamedTuple):
 
 if TYPE_CHECKING:
     SchedulerFactory = Callable[[], Scheduler]
+    ContentStoreFactory = Callable[[], ContentStore]
 
 
 class Blackcat:
     content_parsers: List[ContentParserEntry]
+    # content_store_factory: ContentStoreFactory
     planners: Dict[str, PlannerType]
+    # scheduler_factory: SchedulerFactory
     session: Optional[BlackcatSession]
 
-    def __init__(self, scheduler_factory: SchedulerFactory, user_agent: Optional[str] = None):
+    def __init__(
+        self,
+        scheduler_factory: SchedulerFactory,
+        content_store_factory: ContentStoreFactory,
+        user_agent: Optional[str] = None
+    ):
         self.planners = {}
         self.content_parsers = []
         self.scheduler_factory = scheduler_factory
+        self.content_store_factory = content_store_factory
         self.session = None
         self.user_agent = user_agent or 'blkct crawler'
         self.request_interval = 5.0
@@ -59,10 +68,12 @@ class Blackcat:
         return SetupContext(self)
 
     @contextlib.asynccontextmanager
-    async def start_session(self, session_id: Optional[str] = None) -> AsyncGenerator[BlackcatSession, None]:
+    async def start_session(self, session_id: str) -> AsyncGenerator[BlackcatSession, None]:
         if self.session:
             raise ValueError('session is already started')
-        self.session = BlackcatSession(self, self.scheduler_factory(), session_id=session_id)
+        self.session = BlackcatSession(
+            self, self.scheduler_factory(), self.content_store_factory(), session_id=session_id
+        )
         logger.info('Start session(id=%s)', self.session.session_id)
         try:
             yield self.session
@@ -71,8 +82,7 @@ class Blackcat:
                 await self.session.close()
             self.session = None
 
-    async def run_with_session(self, planner: str, args: Mapping[str, Any],
-                               session_id: str) -> None:
+    async def run_with_session(self, planner: str, args: Mapping[str, Any], session_id: str) -> None:
         async with self.start_session(session_id=session_id) as session:
             await session.dispatch(planner, **args)
             await session.scheduler.run()
