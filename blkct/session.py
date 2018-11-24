@@ -61,6 +61,9 @@ class BlackcatSession:
             if not content:
                 raise CrawlerError('Fetch failed')
 
+            if content.status_code == 200:
+                await self.content_store.push_content(self, url, content)
+
         return parser(url, params, content)
 
     async def dispatch(self, planner: str, **args: Any) -> None:

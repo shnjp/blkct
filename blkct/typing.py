@@ -5,7 +5,7 @@ from typing import Any, Awaitable, Callable, Dict, Optional
 
 from yarl import URL
 
-from .content_store.content import Content, StoredContent
+from .content_store.content import Content, FetchedContent, StoredContent
 from .session import BlackcatSession
 
 __all__ = ('ContentParserType', 'PlannerType', 'Scheduler', 'URL')
@@ -39,4 +39,8 @@ class ContentStore(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     async def pull_content(self, session: BlackcatSession, url: URL) -> Optional[StoredContent]:
-        pass
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    async def push_content(self, session: BlackcatSession, url: URL, content: FetchedContent) -> None:
+        raise NotImplementedError

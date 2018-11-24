@@ -14,6 +14,7 @@ class AsyncIOScheduler(Scheduler):
     planner_queue: asyncio.Queue[PlannerQueueEntry]
 
     def __init__(self, num_workers: int = 1):
+        # TODO: num_workersを使ってない
         self.planner_queue = asyncio.Queue()
 
     async def dispatch(self, session: BlackcatSession, planner: str, args: Dict[str, str]) -> None:
