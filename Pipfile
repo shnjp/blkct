@@ -21,7 +21,6 @@ uwsgi = "*"
 blkct = {editable = true,path = "."}
 colorama = "*"
 typing-extensions = "*"
-werkzeug = "*"
 
 [dev-packages]
 coverage = "*"

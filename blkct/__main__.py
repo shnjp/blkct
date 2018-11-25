@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, TypeVar, cast
 
 from .blackcat import Blackcat
 from .logging import init_logging, logger
+from .setup import merge_setups
 from .utils import make_new_session_id
 
 if TYPE_CHECKING:
@@ -147,38 +148,6 @@ CONTEXT_STORE_FACTORIES['dynamodb'] = _make_dynamodb_context_store_argparser, _m
 
 
 # main
-def blackcat(
-    scheduler_factory: SchedulerFactory, content_store_factory: ContentStoreFactory,
-    context_store_factory: ContextStoreFactory, planner: str, argument: Dict[str, Any], modules: List[str],
-    session_id: Optional[str], verbose: bool, user_agent: Optional[str]
-) -> None:
-    """
-    blackcat
-    """
-    # TODO: schedulerサブコマンドのhelpをprint出来るように
-    init_logging(verbose=verbose)
-
-    blackcat = Blackcat(
-        scheduler_factory=scheduler_factory,
-        content_store_factory=content_store_factory,
-        context_store_factory=context_store_factory,
-        user_agent=user_agent
-    )
-
-    # load planners/parsers
-    with blackcat.setup():
-        for module in modules:
-            logger.info(f'Load module {module}')
-            importlib.import_module(module)
-
-    # make session id
-    session_id = session_id or make_new_session_id()
-
-    # run
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(blackcat.run_with_session(planner, {} if argument is None else argument, session_id))
-
-
 class BlackcatHelpAction(argparse.Action):
     """blkct本体と、scheduler, content storeの全Optionを出力するためのHelp Action"""
 
@@ -262,6 +231,49 @@ def parse_args(args: List[str]
         sys.exit(1)
 
     return main_args, scheduler_args, content_store_args, context_store_args
+
+
+def blackcat(
+    scheduler_factory: SchedulerFactory, content_store_factory: ContentStoreFactory,
+    context_store_factory: ContextStoreFactory, planner: str, argument: Dict[str, Any], modules: List[str],
+    session_id: Optional[str], verbose: bool, user_agent: Optional[str]
+) -> None:
+    """
+    blackcat
+    """
+    # TODO: schedulerサブコマンドのhelpをprint出来るように
+    init_logging(verbose=verbose)
+
+    # load planners/parsers
+    setups = []
+    for path in modules:
+        t = path.split(':', 1)
+        if len(t) == 2:
+            module_name, setup_name = t
+        else:
+            module_name, setup_name = t[0], 'blackcat_setup'
+
+        logger.info(f'Load module {module_name}:{setup_name}')
+        module = importlib.import_module(module_name)
+        setup = getattr(module, setup_name)
+        setups.append(setup)
+
+    planners, content_parsers = merge_setups(setups)
+    blackcat = Blackcat(
+        planners=planners,
+        content_parsers=content_parsers,
+        scheduler_factory=scheduler_factory,
+        content_store_factory=content_store_factory,
+        context_store_factory=context_store_factory,
+        user_agent=user_agent,
+    )
+
+    # make session id
+    session_id = session_id or make_new_session_id()
+
+    # run
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(blackcat.run_with_session(planner, {} if argument is None else argument, session_id))
 
 
 def main(args: Optional[List[str]] = None) -> None:

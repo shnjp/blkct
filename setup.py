@@ -13,7 +13,7 @@ setup(
     name='blkct',
     version='0.1',
     packages=find_packages(exclude=['tests']),
-    install_requires=['aiohttp', 'beautifulsoup4', 'boto3', 'feedparser', 'lxml', 'python-dateutil', 'werkzeug'],
+    install_requires=['aiohttp', 'beautifulsoup4', 'boto3', 'feedparser', 'lxml', 'python-dateutil'],
     entry_points={
         'console_scripts': [
             'blkct=blkct.__main__:main',

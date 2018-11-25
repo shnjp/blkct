@@ -1,27 +1,21 @@
 from __future__ import annotations
 
 import contextlib
-import re
-from typing import NamedTuple, TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, cast
 
 import aiohttp
 
 from yarl import URL
 
-from .globals import _setup_ctx_stack
 from .logging import logger
 from .session import BlackcatSession
+from .setup import ContentParserEntry
 
 if TYPE_CHECKING:
     from types import TracebackType
-    from typing import Any, AsyncGenerator, Dict, List, Mapping, Optional, Pattern, Tuple, Type, Union
+    from typing import Any, AsyncGenerator, Dict, List, Mapping, Optional, Tuple, Type
 
     from .typing import ContentParserType, ContentStoreFactory, ContextStoreFactory, PlannerType, SchedulerFactory
-
-
-class ContentParserEntry(NamedTuple):
-    pattern: Pattern[str]
-    parse: ContentParserType
 
 
 class Blackcat:
@@ -33,13 +27,15 @@ class Blackcat:
 
     def __init__(
         self,
+        planners: Dict[str, PlannerType],
+        content_parsers: List[ContentParserEntry],
         scheduler_factory: SchedulerFactory,
         content_store_factory: ContentStoreFactory,
         context_store_factory: ContextStoreFactory,
         user_agent: Optional[str] = None
     ):
-        self.planners = {}
-        self.content_parsers = []
+        self.planners = planners
+        self.content_parsers = content_parsers
         self.scheduler_factory = scheduler_factory
         self.content_store_factory = content_store_factory
         self.context_store_factory = context_store_factory
@@ -48,22 +44,6 @@ class Blackcat:
         self.request_interval = 5.0
 
     # public
-    def register_planner(self, f: PlannerType, name: Optional[str] = None) -> None:
-        if not name:
-            name = f.__name__
-        if name in self.planners:
-            raise ValueError(f'planner `{name}` is already registered.')
-        self.planners[name] = f
-
-    def register_content_parser(
-        self, url_pattern: Union[str, Pattern[str]], re_flags: re.RegexFlag, f: ContentParserType
-    ) -> None:
-        pattern = re.compile(url_pattern, re_flags)
-        self.content_parsers.append(ContentParserEntry(pattern, f))
-
-    def setup(self) -> 'SetupContext':
-        return SetupContext(self)
-
     @contextlib.asynccontextmanager
     async def start_session(self, session_id: str) -> AsyncGenerator[BlackcatSession, None]:
         if self.session:
@@ -112,34 +92,6 @@ class Blackcat:
             cookie_jar=aiohttp.CookieJar(), headers={'User-Agent': self.user_agent}
         )
         return cast(aiohttp.ClientSession, session)
-
-
-class SetupContext:
-    blackcat: Blackcat
-
-    def __init__(self, blackcat: Blackcat):
-        self.blackcat = blackcat
-
-    def push(self) -> None:
-        """Binds the app context to the current context."""
-        _setup_ctx_stack.push(self)
-
-    def pop(self, exc: Optional[Exception] = None) -> None:
-        """Pops the app context."""
-        rv = _setup_ctx_stack.pop()
-        assert rv is self, f'Popped wrong app context.  ({rv!r} instead of {self!r})'
-
-    def __enter__(self) -> 'SetupContext':
-        self.push()
-        return self
-
-    def __exit__(
-        self, exc_type: Optional[Type[BaseException]], exc_value: Optional[Exception], tb: Optional[TracebackType]
-    ) -> None:
-        self.pop(exc_value)
-
-        if exc_type is not None and exc_value is not None:
-            reraise(exc_type, exc_value, tb)
 
 
 def reraise(exc_type: Type[BaseException], exc_value: Exception, tb: Optional[TracebackType] = None) -> None:
