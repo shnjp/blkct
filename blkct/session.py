@@ -2,34 +2,39 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeVar, cast
 
 from yarl import URL
 
 from .content_store.content import Content, FetchedContent
-from .exceptions import BadStatusCode, CrawlerError
+from .exceptions import BadStatusCode, ContextNotFoundError, CrawlerError
 from .logging import logger
 
 if TYPE_CHECKING:
-    from typing import Any, Dict, Optional, Tuple, Union
+    from typing import Any, Dict, Mapping, Optional, Tuple, Union
 
     import aiohttp
 
     from .blackcat import Blackcat
-    from .typing import ContentParserType, ContentStore, Scheduler
+    from .typing import ContentParserType, ContentStore, ContextStore, Scheduler
 
 
 class BlackcatSession:
     aio_session: aiohttp.ClientSession
     blackcat: Blackcat
     content_store: ContentStore
+    context_store: ContextStore
     last_request_time_per_host: Dict[Tuple[str, int], float]
     scheduler: Scheduler
     session_id: str
 
-    def __init__(self, blackcat: Blackcat, scheduler: Scheduler, content_store: ContentStore, session_id: str):
+    def __init__(
+        self, blackcat: Blackcat, scheduler: Scheduler, content_store: ContentStore, context_store: ContextStore,
+        session_id: str
+    ):
         self.blackcat = blackcat
         self.content_store = content_store
+        self.context_store = context_store
         self.scheduler = scheduler
         self.aio_session = self.blackcat.make_aio_session()
         self.last_request_time_per_host = {}
@@ -70,9 +75,15 @@ class BlackcatSession:
         logger.info('Dispatch %s with args %r', planner, args)
         await self.scheduler.dispatch(self, planner, args)
 
+    async def get_context(self, context_name: str) -> 'SessionContext':
+        context = SessionContext(self, self.context_store, context_name)
+        await context.load()
+        return context
+
     # internal
     async def close(self) -> None:
         await self.aio_session.close()
+        await self.context_store.close()
 
     # private
     async def handle_planner(self, planner: str, args: Dict[str, Any]) -> Any:
@@ -104,3 +115,42 @@ class BlackcatSession:
                     raise BadStatusCode(resp.status)
 
             return FetchedContent(resp.status, resp.headers, await resp.read())
+
+
+# SessionContext
+SessionAttrValueT = TypeVar('SessionAttrValueT')
+
+
+class SessionContext:
+    session: BlackcatSession
+    store: ContextStore
+    context_name: str
+    _data: Mapping[str, Any]
+
+    def __init__(self, session: BlackcatSession, store: ContextStore, context_name: str):
+        self.session = session
+        self.store = store
+        self.context_name = context_name
+
+    # public
+    async def get(self, attr: str, default: Optional[SessionAttrValueT] = None) -> SessionAttrValueT:
+        rv = self._data.get(attr, default)
+        return cast(SessionAttrValueT, rv)
+
+    async def set(self, attr: str, value: SessionAttrValueT) -> None:
+        self._data[attr] = value  # type: ignore
+        await self.save()
+
+    # internal
+    async def load(self) -> None:
+        try:
+            data = await self.store.load(self.session, self.context_name)
+            logger.info('Load context %s: %r', self.context_name, data)
+        except ContextNotFoundError:
+            data = {}
+            logger.info('Context %s not found', self.context_name)
+        self._data = data
+
+    async def save(self) -> None:
+        logger.info('Save context %s: %r', self.context_name, self._data)
+        await self.store.save(self.session, self.context_name, self._data)

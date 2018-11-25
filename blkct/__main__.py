@@ -17,13 +17,17 @@ from .utils import make_new_session_id
 if TYPE_CHECKING:
     from typing import Any, Callable, Dict, List, Optional, Tuple, Union, Sequence
 
-    from .typing import ContentStoreFactory, ContentStore, Scheduler, SchedulerFactory
+    from .typing import (
+        ContentStoreFactory, ContentStore, ContextStore, ContextStoreFactory, Scheduler, SchedulerFactory
+    )
 
-DefaultT = TypeVar('DefaultT')
+DefaultT = TypeVar('DefaultT')  # default_or_environ()用
 SCHEDULER_FACTORIES: Dict[str, Tuple[Callable[[], argparse.ArgumentParser], Callable[[argparse.
                                                                                       Namespace], Scheduler]]] = {}
 CONTENT_STORE_FACTORIES: Dict[str, Tuple[Callable[[], argparse.
                                                   ArgumentParser], Callable[[argparse.Namespace], ContentStore]]] = {}
+CONTEXT_STORE_FACTORIES: Dict[str, Tuple[Callable[[], argparse.
+                                                  ArgumentParser], Callable[[argparse.Namespace], ContextStore]]] = {}
 
 
 # AsyncIOScheduler
@@ -90,7 +94,7 @@ CONTENT_STORE_FACTORIES['file'] = _make_file_content_store_argparser, _make_file
 # S3ContentSTore
 def _make_s3_content_store_argparser() -> argparse.ArgumentParser:
     parser = make_argument_parser(prog='S3 Content Store')
-    parser.add_argument('--s3-bucket')
+    parser.add_argument('--s3-bucket', default=default_or_environ('BLKCT_S3_BUCKET'))
 
     return parser
 
@@ -105,10 +109,48 @@ def _make_s3_content_store(args: argparse.Namespace) -> ContentStore:
 CONTENT_STORE_FACTORIES['s3'] = _make_s3_content_store_argparser, _make_s3_content_store
 
 
+# FileContextStore
+def _make_file_context_store_argparser() -> argparse.ArgumentParser:
+    parser = make_argument_parser(prog='File Context Store')
+    parser.add_argument('--db-file-path', default=default_or_environ('BLKCT_DB_FILE_PATH'))
+
+    return parser
+
+
+def _make_file_context_store(args: argparse.Namespace) -> ContextStore:
+    """
+    DBファイルにContextを保存する
+    """
+    from .context_store.file_context_store import FileContextStore
+
+    return FileContextStore(args.db_file_path)
+
+
+CONTEXT_STORE_FACTORIES['file'] = _make_file_context_store_argparser, _make_file_context_store
+
+
+# DynamDBContextStore
+def _make_dynamodb_context_store_argparser() -> argparse.ArgumentParser:
+    parser = make_argument_parser(prog='DynamoDB Context Store')
+
+    return parser
+
+
+def _make_dynamodb_context_store(args: argparse.Namespace) -> ContextStore:
+    """
+    DBファイルにContextを保存する
+    """
+    raise NotImplementedError
+
+
+CONTEXT_STORE_FACTORIES['dynamodb'] = _make_dynamodb_context_store_argparser, _make_dynamodb_context_store
+
+
 # main
 def blackcat(
-    scheduler_factory: SchedulerFactory, content_store_factory: ContentStoreFactory, planner: str,
-    argument: Dict[str, Any], modules: List[str], session_id: Optional[str], verbose: bool, user_agent: Optional[str]
+    scheduler_factory: SchedulerFactory, content_store_factory: ContentStoreFactory,
+    context_store_factory: ContextStoreFactory, planner: str, argument: Dict[str, Any], modules: List[str],
+    session_id: Optional[str], verbose: bool, user_agent: Optional[str]
 ) -> None:
     """
     blackcat
@@ -117,7 +159,10 @@ def blackcat(
     init_logging(verbose=verbose)
 
     blackcat = Blackcat(
-        scheduler_factory=scheduler_factory, content_store_factory=content_store_factory, user_agent=user_agent
+        scheduler_factory=scheduler_factory,
+        content_store_factory=content_store_factory,
+        context_store_factory=context_store_factory,
+        user_agent=user_agent
     )
 
     # load planners/parsers
@@ -185,10 +230,14 @@ def default_or_environ(env: str, default: Optional[DefaultT] = None) -> DefaultT
     return cast(DefaultT, os.environ.get(env, default))
 
 
-def parse_args(args: List[str]) -> Tuple[argparse.Namespace, argparse.Namespace, argparse.Namespace]:
+# yapf: disable
+def parse_args(args: List[str]
+               ) -> Tuple[argparse.Namespace, argparse.Namespace, argparse.Namespace, argparse.Namespace]:
+    # yapf: enable
     main_parser = make_argument_parser()
     main_parser.add_argument('--scheduler', default=default_or_environ('BLKCT_SCHEDULER', 'asyncio'))
     main_parser.add_argument('--content-store', default=default_or_environ('BLKCT_CONTENT_STORE', 'file'))
+    main_parser.add_argument('--context-store', default=default_or_environ('BLKCT_CONTEXT_STORE', 'file'))
     main_parser.add_argument(
         '-m', '--module', nargs='*', dest='modules', default=default_or_environ('BLKCT_MODULES', [])
     )
@@ -204,6 +253,7 @@ def parse_args(args: List[str]) -> Tuple[argparse.Namespace, argparse.Namespace,
     main_args, args = main_parser.parse_known_args(args)
     scheduler_args, args = SCHEDULER_FACTORIES[main_args.scheduler][0]().parse_known_args(args)
     content_store_args, args = CONTENT_STORE_FACTORIES[main_args.content_store][0]().parse_known_args(args)
+    context_store_args, args = CONTEXT_STORE_FACTORIES[main_args.context_store][0]().parse_known_args(args)
 
     if args:
         print('Unknown options/args', file=sys.stderr)
@@ -211,13 +261,13 @@ def parse_args(args: List[str]) -> Tuple[argparse.Namespace, argparse.Namespace,
             print(f'  {arg}', file=sys.stderr)
         sys.exit(1)
 
-    return main_args, scheduler_args, content_store_args
+    return main_args, scheduler_args, content_store_args, context_store_args
 
 
 def main(args: Optional[List[str]] = None) -> None:
     if not args:
         args = sys.argv[1:]
-    main_args, scheduler_args, content_store_args = parse_args(args)
+    main_args, scheduler_args, content_store_args, context_store_args = parse_args(args)
 
     # modulesが環境変数から来た場合、リストでなく、文字列なので治す
     modules = main_args.modules
@@ -231,7 +281,8 @@ def main(args: Optional[List[str]] = None) -> None:
     # make blackcat
     blackcat(
         lambda: SCHEDULER_FACTORIES[main_args.scheduler][1](scheduler_args),
-        lambda: CONTENT_STORE_FACTORIES[main_args.content_store][1](content_store_args), main_args.planner, argument,
+        lambda: CONTENT_STORE_FACTORIES[main_args.content_store][1](content_store_args),
+        lambda: CONTEXT_STORE_FACTORIES[main_args.context_store][1](context_store_args), main_args.planner, argument,
         modules, main_args.session_id, main_args.verbose, main_args.user_agent
     )
 

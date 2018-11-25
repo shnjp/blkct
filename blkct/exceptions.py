@@ -15,3 +15,7 @@ class BadStatusCode(CrawlerError):
 
 class ParserError(CrawlerError):
     pass
+
+
+class ContextNotFoundError(CrawlerError):
+    pass

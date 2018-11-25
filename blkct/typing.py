@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 import abc
-from typing import Any, Awaitable, Callable, Dict, Optional
+from typing import Any, Awaitable, Callable, Dict, Mapping, Optional
 
 from yarl import URL
 
 from .content_store.content import Content, FetchedContent, StoredContent
 from .session import BlackcatSession
 
-__all__ = ('ContentParserType', 'PlannerType', 'Scheduler', 'URL', 'SchedulerFactory', 'ContentStoreFactory')
+__all__ = (
+    'ContentParserType', 'PlannerType', 'Scheduler', 'URL', 'SchedulerFactory', 'ContentStoreFactory', 'ContextStore',
+    'ContextStoreFactory'
+)
 
 ContentParserType = Callable[[URL, Dict[str, str], Content], Any]
 PlannerType = Callable[..., Awaitable[Any]]
@@ -46,5 +49,24 @@ class ContentStore(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
 
+class ContextStore(metaclass=abc.ABCMeta):
+    """
+    plannerの状態を保存する、ContextStore
+    """
+
+    @abc.abstractmethod
+    async def close(self) -> None:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    async def load(self, session: BlackcatSession, key: str) -> Mapping[str, Any]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    async def save(self, session: BlackcatSession, key: str, data: Mapping[str, Any]) -> None:
+        raise NotImplementedError
+
+
 SchedulerFactory = Callable[[], Scheduler]
 ContentStoreFactory = Callable[[], ContentStore]
+ContextStoreFactory = Callable[[], ContextStore]

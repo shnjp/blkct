@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from types import TracebackType
     from typing import Any, AsyncGenerator, Dict, List, Mapping, Optional, Pattern, Tuple, Type, Union
 
-    from .typing import ContentParserType, ContentStoreFactory, PlannerType, SchedulerFactory
+    from .typing import ContentParserType, ContentStoreFactory, ContextStoreFactory, PlannerType, SchedulerFactory
 
 
 class ContentParserEntry(NamedTuple):
@@ -35,12 +35,14 @@ class Blackcat:
         self,
         scheduler_factory: SchedulerFactory,
         content_store_factory: ContentStoreFactory,
+        context_store_factory: ContextStoreFactory,
         user_agent: Optional[str] = None
     ):
         self.planners = {}
         self.content_parsers = []
         self.scheduler_factory = scheduler_factory
         self.content_store_factory = content_store_factory
+        self.context_store_factory = context_store_factory
         self.session = None
         self.user_agent = user_agent or 'blkct crawler'
         self.request_interval = 5.0
@@ -67,7 +69,11 @@ class Blackcat:
         if self.session:
             raise ValueError('session is already started')
         self.session = BlackcatSession(
-            self, self.scheduler_factory(), self.content_store_factory(), session_id=session_id
+            self,
+            self.scheduler_factory(),
+            self.content_store_factory(),
+            self.context_store_factory(),
+            session_id=session_id
         )
         logger.info('Start session(id=%s)', self.session.session_id)
         try:
