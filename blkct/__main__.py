@@ -135,6 +135,7 @@ CONTEXT_STORE_FACTORIES['file'] = _make_file_context_store_argparser, _make_file
 # DynamDBContextStore
 def _make_dynamodb_context_store_argparser() -> argparse.ArgumentParser:
     parser = make_argument_parser(prog='DynamoDB Context Store')
+    parser.add_argument('--dynamodb-table-name', default=default_or_environ('BLKCT_DYNAMODB_TABLE_NAME'))
 
     return parser
 
@@ -143,7 +144,11 @@ def _make_dynamodb_context_store(args: argparse.Namespace) -> ContextStore:
     """
     DBファイルにContextを保存する
     """
-    raise NotImplementedError
+    from .context_store.dynamodb_context_store import DynamoDBContextStore
+
+    logger.info('make DynamoDBContextStore')
+
+    return DynamoDBContextStore(args.dynamodb_table_name)
 
 
 CONTEXT_STORE_FACTORIES['dynamodb'] = _make_dynamodb_context_store_argparser, _make_dynamodb_context_store

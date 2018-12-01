@@ -9,6 +9,7 @@ from yarl import URL
 from .content_store.content import Content, FetchedContent
 from .exceptions import BadStatusCode, ContextNotFoundError, CrawlerError
 from .logging import logger
+from .typing import BinaryData
 
 if TYPE_CHECKING:
     from typing import Any, Dict, Mapping, Optional, Tuple, Union
@@ -74,8 +75,9 @@ class BlackcatSession:
 
         return parser(url, params, content)
 
-    async def crawl_image(self, url: Union[URL, str], check_status: bool = True) -> 'BinaryData':
-        return await self.crawl(url, parser=parse_image, check_status=check_status)
+    async def crawl_image(self, url: Union[URL, str], check_status: bool = True) -> BinaryData:
+        rv = await self.crawl(url, parser=parse_image, check_status=check_status)
+        return cast(BinaryData, rv)
 
     async def dispatch(self, planner: str, **args: Any) -> None:
         logger.info('Dispatch %s with args %r', planner, args)
@@ -163,7 +165,5 @@ class SessionContext:
 
 
 # ContentParser
-def parse_image(url: URL, params: Dict[str, str], content: Content) -> 'BinaryData':
-    from .typing import BinaryData
-
+def parse_image(url: URL, params: Dict[str, str], content: Content) -> BinaryData:
     return BinaryData(url, content.content_type, content.body)
