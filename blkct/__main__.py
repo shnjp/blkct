@@ -92,10 +92,11 @@ def _make_file_content_store(args: argparse.Namespace) -> ContentStore:
 CONTENT_STORE_FACTORIES['file'] = _make_file_content_store_argparser, _make_file_content_store
 
 
-# S3ContentSTore
+# S3ContentStore
 def _make_s3_content_store_argparser() -> argparse.ArgumentParser:
     parser = make_argument_parser(prog='S3 Content Store')
-    parser.add_argument('--s3-bucket', default=default_or_environ('BLKCT_S3_BUCKET'))
+    parser.add_argument('--s3-content-bucket', default=default_or_environ('BLKCT_S3_CONTENT_BUCKET'))
+    parser.add_argument('--s3-content-prefix', default=default_or_environ('BLKCT_S3_CONTENT_PREFIX'))
 
     return parser
 
@@ -104,7 +105,11 @@ def _make_s3_content_store(args: argparse.Namespace) -> ContentStore:
     """
     S3に保存するContentStoreを作る
     """
-    raise NotImplementedError
+    from .content_store.s3_content_store import S3ContentStore
+
+    logger.info('make S3ContentStore at %s:%s', args.s3_content_bucket, args.s3_content_prefix)
+
+    return S3ContentStore(args.s3_content_bucket, args.s3_content_prefix)
 
 
 CONTENT_STORE_FACTORIES['s3'] = _make_s3_content_store_argparser, _make_s3_content_store

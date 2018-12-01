@@ -5,7 +5,7 @@ import mimetypes
 import os
 from typing import Optional, TYPE_CHECKING
 
-from .content import FetchedContent, StoredContent
+from .content import FetchedContent, StoredContent, url_to_path
 from ..logging import logger
 from ..typing import ContentStore
 
@@ -53,17 +53,3 @@ class FileContentStore(ContentStore):
 
         with open(filepath, 'wb') as fp:
             fp.write(content.body)
-
-
-def url_to_path(base_dir_path: str, url: URL, extension: Optional[str] = None) -> str:
-    if url.scheme not in ('http', 'https') or not url.host or not url.port:
-        raise ValueError('url not supported')
-    if url.fragment:
-        raise ValueError('url has fragment')
-
-    assert url.raw_path_qs.startswith('/')
-    filepath = (url.raw_path_qs[1:].replace('_', '%5f').replace('/', '__').replace('?', '@@'))
-    if extension:
-        filepath += extension
-
-    return os.path.join(base_dir_path, f'{url.scheme}:{url.host}:{url.port}', filepath)
