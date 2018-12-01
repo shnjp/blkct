@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import abc
-from typing import Any, Awaitable, Callable, Dict, Mapping, Optional
+from typing import Any, Awaitable, Callable, Dict, Mapping, NamedTuple, Optional
 
 from yarl import URL
 
@@ -70,3 +70,9 @@ class ContextStore(metaclass=abc.ABCMeta):
 SchedulerFactory = Callable[[], Scheduler]
 ContentStoreFactory = Callable[[], ContentStore]
 ContextStoreFactory = Callable[[], ContextStore]
+
+
+class BinaryData(NamedTuple):
+    url: URL
+    content_type: str
+    body: bytes

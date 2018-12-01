@@ -124,6 +124,8 @@ def _make_file_context_store(args: argparse.Namespace) -> ContextStore:
     """
     from .context_store.file_context_store import FileContextStore
 
+    logger.info('make FileContextStore')
+
     return FileContextStore(args.db_file_path)
 
 

@@ -44,6 +44,9 @@ class BlackcatSession:
     async def crawl(
         self, url: Union[str, URL], *, parser: Optional[ContentParserType] = None, check_status: bool = True
     ) -> Any:
+        """
+        URLをクロールして結果を返す
+        """
         url = URL(url) if isinstance(url, str) else url
 
         # check if parser exists
@@ -70,6 +73,9 @@ class BlackcatSession:
                 await self.content_store.push_content(self, url, content)
 
         return parser(url, params, content)
+
+    async def crawl_image(self, url: Union[URL, str], check_status: bool = True) -> 'BinaryData':
+        return await self.crawl(url, parser=parse_image, check_status=check_status)
 
     async def dispatch(self, planner: str, **args: Any) -> None:
         logger.info('Dispatch %s with args %r', planner, args)
@@ -154,3 +160,10 @@ class SessionContext:
     async def save(self) -> None:
         logger.info('Save context %s: %r', self.context_name, self._data)
         await self.store.save(self.session, self.context_name, self._data)
+
+
+# ContentParser
+def parse_image(url: URL, params: Dict[str, str], content: Content) -> 'BinaryData':
+    from .typing import BinaryData
+
+    return BinaryData(url, content.content_type, content.body)
