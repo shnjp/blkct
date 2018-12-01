@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import abc
-from typing import Any, Awaitable, Callable, Dict, Mapping, NamedTuple, Optional, TYPE_CHECKING
+from typing import Any, Awaitable, Callable, Dict, Mapping, NamedTuple, Optional, TYPE_CHECKING, Tuple
 
 from yarl import URL
 
@@ -12,11 +12,12 @@ if TYPE_CHECKING:
 
 __all__ = (
     'ContentParserType', 'PlannerType', 'Scheduler', 'URL', 'SchedulerFactory', 'ContentStoreFactory', 'ContextStore',
-    'ContextStoreFactory'
+    'ContextStoreFactory', 'PlannerQueueEntry'
 )
 
 ContentParserType = Callable[[URL, Dict[str, str], Content], Any]
 PlannerType = Callable[..., Awaitable[Any]]
+PlannerQueueEntry = Tuple['BlackcatSession', str, Mapping[str, Any]]
 
 
 class Scheduler(metaclass=abc.ABCMeta):
@@ -25,15 +26,11 @@ class Scheduler(metaclass=abc.ABCMeta):
     """
 
     @abc.abstractmethod
-    async def dispatch(self, session: BlackcatSession, planner: str, args: Dict[str, str]) -> None:
+    async def dispatch(self, session: BlackcatSession, planner: str, args: Mapping[str, Any]) -> None:
         raise NotImplementedError
 
     @abc.abstractmethod
     async def run(self) -> None:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    async def run_once(self) -> None:
         raise NotImplementedError
 
 

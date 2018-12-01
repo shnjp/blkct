@@ -94,7 +94,7 @@ class BlackcatSession:
         await self.context_store.close()
 
     # private
-    async def handle_planner(self, planner: str, args: Dict[str, Any]) -> Any:
+    async def handle_planner(self, planner: str, args: Mapping[str, Any]) -> Any:
         logger.info('Handle planner %s with args %r', planner, args)
 
         # TODO: check exists

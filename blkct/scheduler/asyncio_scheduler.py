@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Dict, Tuple
+from typing import Any, Mapping
 
 from ..session import BlackcatSession
-from ..typing import Scheduler
+from ..typing import PlannerQueueEntry, Scheduler
 
-PlannerQueueEntry = Tuple[BlackcatSession, str, Dict[str, str]]
 RUN_PLANNER = object()
 
 
@@ -17,17 +16,15 @@ class AsyncIOScheduler(Scheduler):
         # TODO: num_workersを使ってない
         self.planner_queue = asyncio.Queue()
 
-    async def dispatch(self, session: BlackcatSession, planner: str, args: Dict[str, str]) -> None:
+    async def dispatch(self, session: BlackcatSession, planner: str, args: Mapping[str, Any]) -> None:
         await self.planner_queue.put((session, planner, args))
 
     async def run(self) -> None:
+        """
+        asyncio.Queueで順番に処理する
+
+        Queueが空になるまで回す
+        """
         while not self.planner_queue.empty():
-            await self.run_once()
-
-    async def run_once(self) -> None:
-        """1 planner分走る"""
-        session, planner, args = self.planner_queue.get_nowait()
-        await session.handle_planner(planner, args)
-
-    async def handle_planner(self, session: BlackcatSession, planner: str, args: Dict[str, str]) -> None:
-        await session.handle_planner(planner, args)
+            session, planner, args = self.planner_queue.get_nowait()
+            await session.handle_planner(planner, args)
