@@ -47,6 +47,11 @@ class AWSBatchScheduler(Scheduler):
                 parameters={
                     'planner': planner,
                     'args': json_data
+                },
+                containerOverrides={
+                    'environment': {
+                        'BLKCT_SESSION_ID': session.session_id,
+                    }
                 }
             )
             job_id = response['jobId']
