@@ -54,7 +54,7 @@ SCHEDULER_FACTORIES['asyncio'] = _make_asyncio_scheduler_argparser, _make_asynci
 # AWSBatchScheduler
 def _make_awsbatch_scheduler_argparser() -> argparse.ArgumentParser:
     parser = make_argument_parser(prog='AWSBatch Scheduler')
-    parser.add_argument('--job-name', default=default_or_environ('BLKCT_AWSBATCH_JOB_NAME'))
+    parser.add_argument('--job-definition', default=default_or_environ('BLKCT_AWSBATCH_JOB_DEFINITION'))
     parser.add_argument('--job-queue', default=default_or_environ('BLKCT_AWSBATCH_JOB_QUEUE'))
     return parser
 
@@ -65,9 +65,9 @@ def _make_awsbatch_scheduler(args: argparse.Namespace) -> Scheduler:
     """
     from .scheduler.awsbatch_scheduler import AWSBatchScheduler
 
-    logger.info('make AWSBatchScheduler: %s, %s', args.job_name, args.job_queue)
+    logger.info('make AWSBatchScheduler: %s, %s', args.job_definition, args.job_queue)
 
-    return AWSBatchScheduler(args.job_name, args.job_queue)
+    return AWSBatchScheduler(args.job_definition, args.job_queue)
 
 
 SCHEDULER_FACTORIES['awsbatch'] = _make_awsbatch_scheduler_argparser, _make_awsbatch_scheduler
