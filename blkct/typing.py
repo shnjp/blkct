@@ -26,7 +26,9 @@ class Scheduler(metaclass=abc.ABCMeta):
     """
 
     @abc.abstractmethod
-    async def dispatch(self, session: BlackcatSession, planner: str, args: Mapping[str, Any]) -> None:
+    async def dispatch(
+        self, session: BlackcatSession, planner: str, args: Mapping[str, Any], options: Dict[str, Any]
+    ) -> None:
         raise NotImplementedError
 
     @abc.abstractmethod

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Mapping
+from typing import Any, Dict, Mapping
 
 from ..session import BlackcatSession
 from ..typing import PlannerQueueEntry, Scheduler
@@ -16,7 +16,9 @@ class AsyncIOScheduler(Scheduler):
         # TODO: num_workersを使ってない
         self.planner_queue = asyncio.Queue()
 
-    async def dispatch(self, session: BlackcatSession, planner: str, args: Mapping[str, Any]) -> None:
+    async def dispatch(
+        self, session: BlackcatSession, planner: str, args: Mapping[str, Any], options: Dict[str, Any]
+    ) -> None:
         await self.planner_queue.put((session, planner, args))
 
     async def run(self) -> None:

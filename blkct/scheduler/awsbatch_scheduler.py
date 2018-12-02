@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from hashlib import md5
-from typing import Any, List, Mapping
+from typing import Any, Dict, List, Mapping
 
 import boto3
 
@@ -11,6 +11,9 @@ from ..typing import PlannerQueueEntry, Scheduler
 from ..utils import dump_json
 
 batch_client = boto3.client('batch')
+
+# dispatchをプロセス内で処理するならtrue
+OPTIONS_IN_PROCESS = 'in_process'
 
 
 class AWSBatchScheduler(Scheduler):
@@ -26,19 +29,14 @@ class AWSBatchScheduler(Scheduler):
         self.plans = []
 
     # override
-    async def dispatch(self, session: BlackcatSession, planner: str, args: Mapping[str, Any]) -> None:
+    async def dispatch(
+        self, session: BlackcatSession, planner: str, args: Mapping[str, Any], options: Dict[str, Any]
+    ) -> None:
         logger.info('dispatch job %s:%r', planner, args)
-        self.plans.append((session, planner, args))
 
-    async def run(self) -> None:
-        if not self.plans:
-            raise Exception('No plans dispatched')
-
-        session, planner, args = self.plans.pop(0)
-        await session.handle_planner(planner, args)
-
-        # submit other jobs
-        for session, planner, args in self.plans:
+        if options.get(OPTIONS_IN_PROCESS):
+            self.plans.append((session, planner, args))
+        else:
             # TODO:blockしている
             logger.info('submit job %s:%r', planner, args)
             json_data = dump_json(args)
@@ -53,3 +51,12 @@ class AWSBatchScheduler(Scheduler):
             )
             job_id = response['jobId']
             logger.info('  -> jobId: %s', job_id)
+
+    async def run(self) -> None:
+        if not self.plans:
+            raise Exception('No plans dispatched')
+
+        # submit other jobs
+        while self.plans:
+            session, planner, args = self.plans.pop(0)
+            await session.handle_planner(planner, args)

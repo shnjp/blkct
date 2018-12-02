@@ -79,9 +79,9 @@ class BlackcatSession:
         rv = await self.crawl(url, parser=parse_image, check_status=check_status)
         return cast(BinaryData, rv)
 
-    async def dispatch(self, planner: str, **args: Any) -> None:
-        logger.info('Dispatch %s with args %r', planner, args)
-        await self.scheduler.dispatch(self, planner, args)
+    async def dispatch(self, planner: str, args: Mapping[str, Any], **options: Dict[str, Any]) -> None:
+        logger.info('Dispatch %s with args %r (%r)', planner, args, options)
+        await self.scheduler.dispatch(self, planner, args, options)
 
     async def get_context(self, context_name: str) -> 'SessionContext':
         context = SessionContext(self, self.context_store, context_name)

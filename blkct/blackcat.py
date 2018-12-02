@@ -65,7 +65,7 @@ class Blackcat:
 
     async def run_with_session(self, planner: str, args: Mapping[str, Any], session_id: str) -> None:
         async with self.start_session(session_id=session_id) as session:
-            await session.dispatch(planner, **args)
+            await session.dispatch(planner, args)
             await session.scheduler.run()
 
     # internal
