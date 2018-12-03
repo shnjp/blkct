@@ -17,6 +17,7 @@ OPTIONS_IN_PROCESS = 'in_process'
 
 
 class AWSBatchScheduler(Scheduler):
+    first_plan_dispatched: bool
     plans: List[PlannerQueueEntry]
 
     def __init__(self, job_definition: str, job_queue: str):
@@ -26,12 +27,19 @@ class AWSBatchScheduler(Scheduler):
             raise ValueError('job_queue required')
         self.job_definition = job_definition
         self.job_queue = job_queue
+        self.first_plan_dispatched = False
         self.plans = []
 
     # override
     async def dispatch(
         self, session: BlackcatSession, planner: str, args: Mapping[str, Any], options: Dict[str, Any]
     ) -> None:
+        if not self.first_plan_dispatched:
+            # 最初のJobはこのプロセス内で処理するJob
+            self.first_plan_dispatched = True
+            self.plans.append((session, planner, args))
+            return
+
         logger.info('dispatch job %s:%r', planner, args)
 
         if options.get(OPTIONS_IN_PROCESS):
@@ -49,9 +57,12 @@ class AWSBatchScheduler(Scheduler):
                     'args': json_data
                 },
                 containerOverrides={
-                    'environment': {
-                        'BLKCT_SESSION_ID': session.session_id,
-                    }
+                    'environment': [
+                        {
+                            'name': 'BLKCT_SESSION_ID',
+                            'value': session.session_id,
+                        },
+                    ],
                 }
             )
             job_id = response['jobId']
