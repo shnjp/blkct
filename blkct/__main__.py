@@ -5,6 +5,7 @@ import asyncio
 import importlib
 import itertools
 import json
+import logging
 import os
 import sys
 from gettext import gettext as _
@@ -257,8 +258,8 @@ def blackcat(
     """
     blackcat
     """
-    # TODO: schedulerサブコマンドのhelpをprint出来るように
     init_logging(verbose=verbose)
+    logging.getLogger('botocore').setLevel(logging.WARNG)
 
     # load planners/parsers
     setups = []
