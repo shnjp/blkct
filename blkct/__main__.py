@@ -30,24 +30,13 @@ if TYPE_CHECKING:
 
 DefaultT = TypeVar("DefaultT")  # default_or_environ()用
 SCHEDULER_FACTORIES: Dict[
-    str,
-    Tuple[
-        Callable[[], argparse.ArgumentParser], Callable[[argparse.Namespace], Scheduler]
-    ],
+    str, Tuple[Callable[[], argparse.ArgumentParser], Callable[[argparse.Namespace], Scheduler]]
 ] = {}
 CONTENT_STORE_FACTORIES: Dict[
-    str,
-    Tuple[
-        Callable[[], argparse.ArgumentParser],
-        Callable[[argparse.Namespace], ContentStore],
-    ],
+    str, Tuple[Callable[[], argparse.ArgumentParser], Callable[[argparse.Namespace], ContentStore]]
 ] = {}
 CONTEXT_STORE_FACTORIES: Dict[
-    str,
-    Tuple[
-        Callable[[], argparse.ArgumentParser],
-        Callable[[argparse.Namespace], ContextStore],
-    ],
+    str, Tuple[Callable[[], argparse.ArgumentParser], Callable[[argparse.Namespace], ContextStore]]
 ] = {}
 
 
@@ -68,21 +57,14 @@ def _make_asyncio_scheduler(args: argparse.Namespace) -> Scheduler:
     return AsyncIOScheduler()
 
 
-SCHEDULER_FACTORIES["asyncio"] = (
-    _make_asyncio_scheduler_argparser,
-    _make_asyncio_scheduler,
-)
+SCHEDULER_FACTORIES["asyncio"] = (_make_asyncio_scheduler_argparser, _make_asyncio_scheduler)
 
 
 # AWSBatchScheduler
 def _make_awsbatch_scheduler_argparser() -> argparse.ArgumentParser:
     parser = make_argument_parser(prog="AWSBatch Scheduler")
-    parser.add_argument(
-        "--job-definition", default=default_or_environ("BLKCT_AWSBATCH_JOB_DEFINITION")
-    )
-    parser.add_argument(
-        "--job-queue", default=default_or_environ("BLKCT_AWSBATCH_JOB_QUEUE")
-    )
+    parser.add_argument("--job-definition", default=default_or_environ("BLKCT_AWSBATCH_JOB_DEFINITION"))
+    parser.add_argument("--job-queue", default=default_or_environ("BLKCT_AWSBATCH_JOB_QUEUE"))
     return parser
 
 
@@ -97,19 +79,13 @@ def _make_awsbatch_scheduler(args: argparse.Namespace) -> Scheduler:
     return AWSBatchScheduler(args.job_definition, args.job_queue)
 
 
-SCHEDULER_FACTORIES["awsbatch"] = (
-    _make_awsbatch_scheduler_argparser,
-    _make_awsbatch_scheduler,
-)
+SCHEDULER_FACTORIES["awsbatch"] = (_make_awsbatch_scheduler_argparser, _make_awsbatch_scheduler)
 
 
 # FileContentStore
 def _make_file_content_store_argparser() -> argparse.ArgumentParser:
     parser = make_argument_parser(prog="File Content Store")
-    parser.add_argument(
-        "--content-store-path",
-        default=default_or_environ("BLKCT_CONTENT_STORE_PATH", "/tmp/blkct"),
-    )
+    parser.add_argument("--content-store-path", default=default_or_environ("BLKCT_CONTENT_STORE_PATH", "/tmp/blkct"))
 
     return parser
 
@@ -126,21 +102,14 @@ def _make_file_content_store(args: argparse.Namespace) -> ContentStore:
     return FileContentStore(store_root_path=args.content_store_path)
 
 
-CONTENT_STORE_FACTORIES["file"] = (
-    _make_file_content_store_argparser,
-    _make_file_content_store,
-)
+CONTENT_STORE_FACTORIES["file"] = (_make_file_content_store_argparser, _make_file_content_store)
 
 
 # S3ContentStore
 def _make_s3_content_store_argparser() -> argparse.ArgumentParser:
     parser = make_argument_parser(prog="S3 Content Store")
-    parser.add_argument(
-        "--s3-content-bucket", default=default_or_environ("BLKCT_S3_CONTENT_BUCKET")
-    )
-    parser.add_argument(
-        "--s3-content-prefix", default=default_or_environ("BLKCT_S3_CONTENT_PREFIX")
-    )
+    parser.add_argument("--s3-content-bucket", default=default_or_environ("BLKCT_S3_CONTENT_BUCKET"))
+    parser.add_argument("--s3-content-prefix", default=default_or_environ("BLKCT_S3_CONTENT_PREFIX"))
 
     return parser
 
@@ -151,9 +120,7 @@ def _make_s3_content_store(args: argparse.Namespace) -> ContentStore:
     """
     from .content_store.s3_content_store import S3ContentStore
 
-    logger.info(
-        "make S3ContentStore at %s:%s", args.s3_content_bucket, args.s3_content_prefix
-    )
+    logger.info("make S3ContentStore at %s:%s", args.s3_content_bucket, args.s3_content_prefix)
 
     return S3ContentStore(args.s3_content_bucket, args.s3_content_prefix)
 
@@ -164,9 +131,7 @@ CONTENT_STORE_FACTORIES["s3"] = _make_s3_content_store_argparser, _make_s3_conte
 # FileContextStore
 def _make_file_context_store_argparser() -> argparse.ArgumentParser:
     parser = make_argument_parser(prog="File Context Store")
-    parser.add_argument(
-        "--db-file-path", default=default_or_environ("BLKCT_DB_FILE_PATH")
-    )
+    parser.add_argument("--db-file-path", default=default_or_environ("BLKCT_DB_FILE_PATH"))
 
     return parser
 
@@ -177,23 +142,20 @@ def _make_file_context_store(args: argparse.Namespace) -> ContextStore:
     """
     from .context_store.file_context_store import FileContextStore
 
+    assert args.db_file_path
+
     logger.info("make FileContextStore")
 
     return FileContextStore(args.db_file_path)
 
 
-CONTEXT_STORE_FACTORIES["file"] = (
-    _make_file_context_store_argparser,
-    _make_file_context_store,
-)
+CONTEXT_STORE_FACTORIES["file"] = (_make_file_context_store_argparser, _make_file_context_store)
 
 
 # DynamDBContextStore
 def _make_dynamodb_context_store_argparser() -> argparse.ArgumentParser:
     parser = make_argument_parser(prog="DynamoDB Context Store")
-    parser.add_argument(
-        "--dynamodb-table-name", default=default_or_environ("BLKCT_DYNAMODB_TABLE_NAME")
-    )
+    parser.add_argument("--dynamodb-table-name", default=default_or_environ("BLKCT_DYNAMODB_TABLE_NAME"))
 
     return parser
 
@@ -209,10 +171,7 @@ def _make_dynamodb_context_store(args: argparse.Namespace) -> ContextStore:
     return DynamoDBContextStore(args.dynamodb_table_name)
 
 
-CONTEXT_STORE_FACTORIES["dynamodb"] = (
-    _make_dynamodb_context_store_argparser,
-    _make_dynamodb_context_store,
-)
+CONTEXT_STORE_FACTORIES["dynamodb"] = (_make_dynamodb_context_store_argparser, _make_dynamodb_context_store)
 
 
 # main
@@ -227,11 +186,7 @@ class BlackcatHelpAction(argparse.Action):
         help: Optional[str] = None,
     ):
         super(BlackcatHelpAction, self).__init__(
-            option_strings=option_strings,
-            dest=dest,
-            default=default,
-            nargs=0,
-            help=help,
+            option_strings=option_strings, dest=dest, default=default, nargs=0, help=help
         )
 
     def __call__(

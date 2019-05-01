@@ -32,11 +32,7 @@ class AWSBatchScheduler(Scheduler):
 
     # override
     async def dispatch(
-        self,
-        session: BlackcatSession,
-        planner: str,
-        args: Mapping[str, Any],
-        options: Dict[str, Any],
+        self, session: BlackcatSession, planner: str, args: Mapping[str, Any], options: Dict[str, Any]
     ) -> None:
         if not self.first_plan_dispatched:
             # 最初のJobはこのプロセス内で処理するJob
@@ -57,11 +53,7 @@ class AWSBatchScheduler(Scheduler):
                 jobQueue=self.job_queue,
                 jobDefinition=self.job_definition,
                 parameters={"planner": planner, "args": json_data},
-                containerOverrides={
-                    "environment": [
-                        {"name": "BLKCT_SESSION_ID", "value": session.session_id}
-                    ]
-                },
+                containerOverrides={"environment": [{"name": "BLKCT_SESSION_ID", "value": session.session_id}]},
             )
             job_id = response["jobId"]
             logger.info("  -> jobId: %s", job_id)

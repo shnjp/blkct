@@ -47,11 +47,7 @@ class BlackcatSession:
 
     # public
     async def crawl(
-        self,
-        url: Union[str, URL],
-        *,
-        parser: Optional[ContentParserType] = None,
-        check_status: bool = True,
+        self, url: Union[str, URL], *, parser: Optional[ContentParserType] = None, check_status: bool = True
     ) -> Any:
         """
         URLをクロールして結果を返す
@@ -83,15 +79,11 @@ class BlackcatSession:
 
         return parser(url, params, content)
 
-    async def crawl_image(
-        self, url: Union[URL, str], check_status: bool = True
-    ) -> BinaryData:
+    async def crawl_image(self, url: Union[URL, str], check_status: bool = True) -> BinaryData:
         rv = await self.crawl(url, parser=parse_image, check_status=check_status)
         return cast(BinaryData, rv)
 
-    async def dispatch(
-        self, planner: str, args: Mapping[str, Any], **options: Dict[str, Any]
-    ) -> None:
+    async def dispatch(self, planner: str, args: Mapping[str, Any], **options: Dict[str, Any]) -> None:
         logger.info("Dispatch %s with args %r (%r)", planner, args, options)
         await self.scheduler.dispatch(self, planner, args, options)
 
@@ -113,9 +105,7 @@ class BlackcatSession:
         p = self.blackcat.planners[planner]
         return await p(self, **args)
 
-    async def fetch_content(
-        self, url: URL, check_status: bool
-    ) -> Optional[FetchedContent]:
+    async def fetch_content(self, url: URL, check_status: bool) -> Optional[FetchedContent]:
         # ホストにアクセスする間隔についてwaitを入れる
         if url.scheme not in ("http", "https") or not url.host or not url.port:
             return None
@@ -149,17 +139,13 @@ class SessionContext:
     context_name: str
     _data: Mapping[str, Any]
 
-    def __init__(
-        self, session: BlackcatSession, store: ContextStore, context_name: str
-    ):
+    def __init__(self, session: BlackcatSession, store: ContextStore, context_name: str):
         self.session = session
         self.store = store
         self.context_name = context_name
 
     # public
-    async def get(
-        self, attr: str, default: Optional[SessionAttrValueT] = None
-    ) -> SessionAttrValueT:
+    async def get(self, attr: str, default: Optional[SessionAttrValueT] = None) -> SessionAttrValueT:
         rv = self._data.get(attr, default)
         return cast(SessionAttrValueT, rv)
 

@@ -26,9 +26,7 @@ class S3ContentStore(ContentStore):
         self.key_prefix = key_prefix
 
     # override
-    async def pull_content(
-        self, session: BlackcatSession, url: URL
-    ) -> Optional[StoredContent]:
+    async def pull_content(self, session: BlackcatSession, url: URL) -> Optional[StoredContent]:
         # TODO:blockしている
         obj = self.get_obj(session, url)
 
@@ -43,9 +41,7 @@ class S3ContentStore(ContentStore):
                 return None
             raise
 
-    async def push_content(
-        self, session: BlackcatSession, url: URL, content: FetchedContent
-    ) -> None:
+    async def push_content(self, session: BlackcatSession, url: URL, content: FetchedContent) -> None:
         # TODO:blockしている
         obj = self.get_obj(session, url)
 

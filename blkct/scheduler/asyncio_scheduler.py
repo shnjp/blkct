@@ -17,11 +17,7 @@ class AsyncIOScheduler(Scheduler):
         self.planner_queue = asyncio.Queue()
 
     async def dispatch(
-        self,
-        session: BlackcatSession,
-        planner: str,
-        args: Mapping[str, Any],
-        options: Dict[str, Any],
+        self, session: BlackcatSession, planner: str, args: Mapping[str, Any], options: Dict[str, Any]
     ) -> None:
         await self.planner_queue.put((session, planner, args))
 

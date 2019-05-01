@@ -15,13 +15,7 @@ if TYPE_CHECKING:
     from types import TracebackType
     from typing import Any, AsyncGenerator, Dict, List, Mapping, Optional, Tuple, Type
 
-    from .typing import (
-        ContentParserType,
-        ContentStoreFactory,
-        ContextStoreFactory,
-        PlannerType,
-        SchedulerFactory,
-    )
+    from .typing import ContentParserType, ContentStoreFactory, ContextStoreFactory, PlannerType, SchedulerFactory
 
 
 class Blackcat:
@@ -51,9 +45,7 @@ class Blackcat:
 
     # public
     @contextlib.asynccontextmanager
-    async def start_session(
-        self, session_id: str
-    ) -> AsyncGenerator[BlackcatSession, None]:
+    async def start_session(self, session_id: str) -> AsyncGenerator[BlackcatSession, None]:
         if self.session:
             raise ValueError("session is already started")
         self.session = BlackcatSession(
@@ -71,17 +63,13 @@ class Blackcat:
                 await self.session.close()
             self.session = None
 
-    async def run_with_session(
-        self, planner: str, args: Mapping[str, Any], session_id: str
-    ) -> None:
+    async def run_with_session(self, planner: str, args: Mapping[str, Any], session_id: str) -> None:
         async with self.start_session(session_id=session_id) as session:
             await session.dispatch(planner, args)
             await session.scheduler.run()
 
     # internal
-    def get_content_parsers_by_url(
-        self, url: URL
-    ) -> Tuple[ContentParserType, Dict[str, str]]:
+    def get_content_parsers_by_url(self, url: URL) -> Tuple[ContentParserType, Dict[str, str]]:
         if url.scheme not in ("http", "https"):
             raise ValueError(f"Bad URL `{url}`")
 
@@ -106,11 +94,7 @@ class Blackcat:
         return cast(aiohttp.ClientSession, session)
 
 
-def reraise(
-    exc_type: Type[BaseException],
-    exc_value: Exception,
-    tb: Optional[TracebackType] = None,
-) -> None:
+def reraise(exc_type: Type[BaseException], exc_value: Exception, tb: Optional[TracebackType] = None) -> None:
     if exc_value.__traceback__ is not tb:
         raise exc_value.with_traceback(tb)
     raise exc_value

@@ -22,13 +22,7 @@ if has_colorama:
         pass
 
     class NiceColoredFormatter(logging.Formatter):
-        short_levelname_map = {
-            "DEBUG": "DBUG",
-            "INFO": "INFO",
-            "WARNING": "WARN",
-            "ERROR": "ERRO",
-            "CRITICAL": "CRIT",
-        }
+        short_levelname_map = {"DEBUG": "DBUG", "INFO": "INFO", "WARNING": "WARN", "ERROR": "ERRO", "CRITICAL": "CRIT"}
         level_color_map = {
             "DEBUG": colorama.Style.DIM + colorama.Fore.WHITE,
             "INFO": colorama.Fore.WHITE,
@@ -46,8 +40,7 @@ if has_colorama:
             assert isinstance(record, logging.LogRecord)
 
             record.nice_levelname = self._colored(
-                self.level_color_map[record.levelname],
-                "[{}]".format(self.short_levelname_map[record.levelname]),
+                self.level_color_map[record.levelname], "[{}]".format(self.short_levelname_map[record.levelname])
             )
             record.nice_name = self._colored(self.name_color, record.name)
             if hasattr(record, "asctime"):
@@ -63,15 +56,9 @@ def init_logging(verbose: bool) -> None:
         fh = logging.StreamHandler(sys.stderr)
 
         if has_colorama:
-            fh.setFormatter(
-                NiceColoredFormatter(
-                    "%(nice_levelname)s %(asctime)s %(nice_name)s : %(message)s"
-                )
-            )
+            fh.setFormatter(NiceColoredFormatter("%(nice_levelname)s %(asctime)s %(nice_name)s : %(message)s"))
         else:
-            fh.setFormatter(
-                logging.Formatter("%(levelname)s %(asctime)s %(name)s : %(message)s")
-            )
+            fh.setFormatter(logging.Formatter("%(levelname)s %(asctime)s %(name)s : %(message)s"))
         root_logger = logging.getLogger()
         root_logger.addHandler(fh)
         root_logger.setLevel(logging.DEBUG if verbose else logging.WARN)

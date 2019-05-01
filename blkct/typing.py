@@ -1,17 +1,7 @@
 from __future__ import annotations
 
 import abc
-from typing import (
-    Any,
-    Awaitable,
-    Callable,
-    Dict,
-    Mapping,
-    NamedTuple,
-    Optional,
-    TYPE_CHECKING,
-    Tuple,
-)
+from typing import Any, Awaitable, Callable, Dict, Mapping, NamedTuple, Optional, TYPE_CHECKING, Tuple
 
 from yarl import URL
 
@@ -44,11 +34,7 @@ class Scheduler(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     async def dispatch(
-        self,
-        session: BlackcatSession,
-        planner: str,
-        args: Mapping[str, Any],
-        options: Dict[str, Any],
+        self, session: BlackcatSession, planner: str, args: Mapping[str, Any], options: Dict[str, Any]
     ) -> None:
         raise NotImplementedError
 
@@ -63,15 +49,11 @@ class ContentStore(metaclass=abc.ABCMeta):
     """
 
     @abc.abstractmethod
-    async def pull_content(
-        self, session: BlackcatSession, url: URL
-    ) -> Optional[StoredContent]:
+    async def pull_content(self, session: BlackcatSession, url: URL) -> Optional[StoredContent]:
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def push_content(
-        self, session: BlackcatSession, url: URL, content: FetchedContent
-    ) -> None:
+    async def push_content(self, session: BlackcatSession, url: URL, content: FetchedContent) -> None:
         raise NotImplementedError
 
 
@@ -89,9 +71,7 @@ class ContextStore(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def save(
-        self, session: BlackcatSession, key: str, data: Mapping[str, Any]
-    ) -> None:
+    async def save(self, session: BlackcatSession, key: str, data: Mapping[str, Any]) -> None:
         raise NotImplementedError
 
 

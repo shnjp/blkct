@@ -23,13 +23,8 @@ class FileContentStore(ContentStore):
     def __init__(self, store_root_path: str):
         self.store_root_path = store_root_path
 
-    async def pull_content(
-        self, session: BlackcatSession, url: URL
-    ) -> Optional[StoredContent]:
-        filepathpattern = (
-            url_to_path(os.path.join(self.store_root_path, session.session_id), url)
-            + ".*"
-        )
+    async def pull_content(self, session: BlackcatSession, url: URL) -> Optional[StoredContent]:
+        filepathpattern = url_to_path(os.path.join(self.store_root_path, session.session_id), url) + ".*"
         files = glob.glob(filepathpattern)
 
         if not files:
@@ -45,14 +40,10 @@ class FileContentStore(ContentStore):
         with open(filepath, "rb") as fp:
             return StoredContent(content_type, fp.read())
 
-    async def push_content(
-        self, session: BlackcatSession, url: URL, content: FetchedContent
-    ) -> None:
+    async def push_content(self, session: BlackcatSession, url: URL, content: FetchedContent) -> None:
         ext = mimetypes.guess_extension(content.content_type) or ".bin"
         assert ext and ext.startswith(".")
-        filepath = url_to_path(
-            os.path.join(self.store_root_path, session.session_id), url, ext
-        )
+        filepath = url_to_path(os.path.join(self.store_root_path, session.session_id), url, ext)
         dirpath, filename = os.path.split(filepath)
         logger.info("save %s content to %s", url, filepath)
 

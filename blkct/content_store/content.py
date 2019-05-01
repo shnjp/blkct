@@ -75,9 +75,7 @@ def url_to_path(base_dir_path: str, url: URL, extension: Optional[str] = None) -
         raise ValueError("url has fragment")
 
     assert url.raw_path_qs.startswith("/")
-    filepath = (
-        url.raw_path_qs[1:].replace("_", "%5f").replace("/", "__").replace("?", "@@")
-    )
+    filepath = url.raw_path_qs[1:].replace("_", "%5f").replace("/", "__").replace("?", "@@")
     if extension:
         filepath += extension
 

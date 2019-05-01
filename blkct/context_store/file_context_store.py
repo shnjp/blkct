@@ -18,6 +18,7 @@ class FileContextStore(ContextStore):
     db: Any
 
     def __init__(self, db_file_path: str):
+        assert db_file_path
         self.db_file_path = db_file_path
         self.db = dbm.open(db_file_path, "c")
 
@@ -32,7 +33,5 @@ class FileContextStore(ContextStore):
         parsed = json.loads(raw)
         return cast(Mapping[str, Any], parsed)
 
-    async def save(
-        self, session: BlackcatSession, key: str, data: Mapping[str, Any]
-    ) -> None:
+    async def save(self, session: BlackcatSession, key: str, data: Mapping[str, Any]) -> None:
         self.db[key] = json.dumps(data)
