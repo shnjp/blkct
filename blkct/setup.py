@@ -8,7 +8,7 @@ if TYPE_CHECKING:
 
     from .typing import ContentParserType, PlannerType
 
-RT = TypeVar('RT')
+RT = TypeVar("RT")
 
 
 class ContentParserEntry(NamedTuple):
@@ -24,8 +24,9 @@ class BlackcatSetup:
         self.planners = {}
         self.content_parsers = []
 
-    def register_planner(self, name: Optional[str] = None) -> Callable[[PlannerType], PlannerType]:
-
+    def register_planner(
+        self, name: Optional[str] = None
+    ) -> Callable[[PlannerType], PlannerType]:
         def decorator(f: PlannerType) -> PlannerType:
             self.register_planner_func(f, name)
             return f
@@ -33,9 +34,10 @@ class BlackcatSetup:
         return decorator
 
     def register_content_parser(
-        self, url_pattern: Union[str, Pattern[str]], flags: re.RegexFlag = cast(re.RegexFlag, 0)
+        self,
+        url_pattern: Union[str, Pattern[str]],
+        flags: re.RegexFlag = cast(re.RegexFlag, 0),
     ) -> Callable[[ContentParserType], ContentParserType]:
-
         def decorator(f: ContentParserType) -> ContentParserType:
             self.register_content_parser_func(url_pattern, flags, f)
             return f
@@ -46,17 +48,22 @@ class BlackcatSetup:
         if not name:
             name = f.__name__
         if name in self.planners:
-            raise ValueError(f'planner `{name}` is already registered.')
+            raise ValueError(f"planner `{name}` is already registered.")
         self.planners[name] = f
 
     def register_content_parser_func(
-        self, url_pattern: Union[str, Pattern[str]], re_flags: re.RegexFlag, f: ContentParserType
+        self,
+        url_pattern: Union[str, Pattern[str]],
+        re_flags: re.RegexFlag,
+        f: ContentParserType,
     ) -> None:
         pattern = re.compile(url_pattern, re_flags)
         self.content_parsers.append(ContentParserEntry(pattern, f))
 
 
-def merge_setups(setups: List[BlackcatSetup]) -> Tuple[Dict[str, PlannerType], List[ContentParserEntry]]:
+def merge_setups(
+    setups: List[BlackcatSetup]
+) -> Tuple[Dict[str, PlannerType], List[ContentParserEntry]]:
     planners: Dict[str, PlannerType] = {}
     content_parsers: List[ContentParserEntry] = []
 

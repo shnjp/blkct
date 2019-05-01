@@ -10,10 +10,10 @@ from ..session import BlackcatSession
 from ..typing import PlannerQueueEntry, Scheduler
 from ..utils import dump_json
 
-batch_client = boto3.client('batch')
+batch_client = boto3.client("batch")
 
 # dispatchをプロセス内で処理するならtrue
-OPTIONS_IN_PROCESS = 'in_process'
+OPTIONS_IN_PROCESS = "in_process"
 
 
 class AWSBatchScheduler(Scheduler):
@@ -22,9 +22,9 @@ class AWSBatchScheduler(Scheduler):
 
     def __init__(self, job_definition: str, job_queue: str):
         if not job_definition:
-            raise ValueError('job_definition required')
+            raise ValueError("job_definition required")
         if not job_queue:
-            raise ValueError('job_queue required')
+            raise ValueError("job_queue required")
         self.job_definition = job_definition
         self.job_queue = job_queue
         self.first_plan_dispatched = False
@@ -32,7 +32,11 @@ class AWSBatchScheduler(Scheduler):
 
     # override
     async def dispatch(
-        self, session: BlackcatSession, planner: str, args: Mapping[str, Any], options: Dict[str, Any]
+        self,
+        session: BlackcatSession,
+        planner: str,
+        args: Mapping[str, Any],
+        options: Dict[str, Any],
     ) -> None:
         if not self.first_plan_dispatched:
             # 最初のJobはこのプロセス内で処理するJob
@@ -40,37 +44,31 @@ class AWSBatchScheduler(Scheduler):
             self.plans.append((session, planner, args))
             return
 
-        logger.info('dispatch job %s:%r', planner, args)
+        logger.info("dispatch job %s:%r", planner, args)
 
         if options.get(OPTIONS_IN_PROCESS):
             self.plans.append((session, planner, args))
         else:
             # TODO:blockしている
-            logger.info('submit job %s:%r', planner, args)
+            logger.info("submit job %s:%r", planner, args)
             json_data = dump_json(args)
             response = batch_client.submit_job(
                 jobName=f"{session.session_id}_{planner}_{md5(json_data.encode('utf-8')).hexdigest()}",
                 jobQueue=self.job_queue,
                 jobDefinition=self.job_definition,
-                parameters={
-                    'planner': planner,
-                    'args': json_data
-                },
+                parameters={"planner": planner, "args": json_data},
                 containerOverrides={
-                    'environment': [
-                        {
-                            'name': 'BLKCT_SESSION_ID',
-                            'value': session.session_id,
-                        },
-                    ],
-                }
+                    "environment": [
+                        {"name": "BLKCT_SESSION_ID", "value": session.session_id}
+                    ]
+                },
             )
-            job_id = response['jobId']
-            logger.info('  -> jobId: %s', job_id)
+            job_id = response["jobId"]
+            logger.info("  -> jobId: %s", job_id)
 
     async def run(self) -> None:
         if not self.plans:
-            raise Exception('No plans dispatched')
+            raise Exception("No plans dispatched")
 
         # submit other jobs
         while self.plans:

@@ -26,7 +26,9 @@ class S3ContentStore(ContentStore):
         self.key_prefix = key_prefix
 
     # override
-    async def pull_content(self, session: BlackcatSession, url: URL) -> Optional[StoredContent]:
+    async def pull_content(
+        self, session: BlackcatSession, url: URL
+    ) -> Optional[StoredContent]:
         # TODO:blockしている
         obj = self.get_obj(session, url)
 
@@ -36,21 +38,23 @@ class S3ContentStore(ContentStore):
 
                 return StoredContent(obj.content_type, fp.getvalue())
         except ClientError as exc:
-            if exc.response['Error']['Code'] == '404':
+            if exc.response["Error"]["Code"] == "404":
                 # no content
                 return None
             raise
 
-    async def push_content(self, session: BlackcatSession, url: URL, content: FetchedContent) -> None:
+    async def push_content(
+        self, session: BlackcatSession, url: URL, content: FetchedContent
+    ) -> None:
         # TODO:blockしている
         obj = self.get_obj(session, url)
 
         with io.BytesIO(content.body) as fp:
-            obj.upload_fileobj(fp, {'ContentType': content.content_type})
+            obj.upload_fileobj(fp, {"ContentType": content.content_type})
 
     # private
     def make_key(self, session: BlackcatSession, url: URL) -> str:
         return self.key_prefix + url_to_path(session.session_id, url)
 
     def get_obj(self, session: BlackcatSession, url: URL) -> Any:
-        return boto3.resource('s3').Object(self.bucket, self.make_key(session, url))
+        return boto3.resource("s3").Object(self.bucket, self.make_key(session, url))

@@ -30,8 +30,12 @@ class BlackcatSession:
     session_id: str
 
     def __init__(
-        self, blackcat: Blackcat, scheduler: Scheduler, content_store: ContentStore, context_store: ContextStore,
-        session_id: str
+        self,
+        blackcat: Blackcat,
+        scheduler: Scheduler,
+        content_store: ContentStore,
+        context_store: ContextStore,
+        session_id: str,
     ):
         self.blackcat = blackcat
         self.content_store = content_store
@@ -43,7 +47,11 @@ class BlackcatSession:
 
     # public
     async def crawl(
-        self, url: Union[str, URL], *, parser: Optional[ContentParserType] = None, check_status: bool = True
+        self,
+        url: Union[str, URL],
+        *,
+        parser: Optional[ContentParserType] = None,
+        check_status: bool = True,
     ) -> Any:
         """
         URLをクロールして結果を返す
@@ -54,7 +62,7 @@ class BlackcatSession:
         if not parser:
             parser, params = self.blackcat.get_content_parsers_by_url(url)
             if not parser:
-                raise Exception(f'No parsers found for URL `{url}`')
+                raise Exception(f"No parsers found for URL `{url}`")
         else:
             params = {}
 
@@ -64,26 +72,30 @@ class BlackcatSession:
             pass
         else:
             # HTTPで落とす
-            logger.info('Crawl URL: %s', url)
+            logger.info("Crawl URL: %s", url)
 
             content = await self.fetch_content(url, check_status)
             if not content:
-                raise CrawlerError('Fetch failed')
+                raise CrawlerError("Fetch failed")
 
             if content.status_code == 200:
                 await self.content_store.push_content(self, url, content)
 
         return parser(url, params, content)
 
-    async def crawl_image(self, url: Union[URL, str], check_status: bool = True) -> BinaryData:
+    async def crawl_image(
+        self, url: Union[URL, str], check_status: bool = True
+    ) -> BinaryData:
         rv = await self.crawl(url, parser=parse_image, check_status=check_status)
         return cast(BinaryData, rv)
 
-    async def dispatch(self, planner: str, args: Mapping[str, Any], **options: Dict[str, Any]) -> None:
-        logger.info('Dispatch %s with args %r (%r)', planner, args, options)
+    async def dispatch(
+        self, planner: str, args: Mapping[str, Any], **options: Dict[str, Any]
+    ) -> None:
+        logger.info("Dispatch %s with args %r (%r)", planner, args, options)
         await self.scheduler.dispatch(self, planner, args, options)
 
-    async def get_context(self, context_name: str) -> 'SessionContext':
+    async def get_context(self, context_name: str) -> "SessionContext":
         context = SessionContext(self, self.context_store, context_name)
         await context.load()
         return context
@@ -95,15 +107,17 @@ class BlackcatSession:
 
     # private
     async def handle_planner(self, planner: str, args: Mapping[str, Any]) -> Any:
-        logger.info('Handle planner %s with args %r', planner, args)
+        logger.info("Handle planner %s with args %r", planner, args)
 
         # TODO: check exists
         p = self.blackcat.planners[planner]
         return await p(self, **args)
 
-    async def fetch_content(self, url: URL, check_status: bool) -> Optional[FetchedContent]:
+    async def fetch_content(
+        self, url: URL, check_status: bool
+    ) -> Optional[FetchedContent]:
         # ホストにアクセスする間隔についてwaitを入れる
-        if url.scheme not in ('http', 'https') or not url.host or not url.port:
+        if url.scheme not in ("http", "https") or not url.host or not url.port:
             return None
 
         now = time.time()
@@ -112,7 +126,7 @@ class BlackcatSession:
         if last_request:
             wait_until = last_request + self.blackcat.request_interval
             if wait_until > now:
-                logger.debug('sleep %f secs', wait_until - now)
+                logger.debug("sleep %f secs", wait_until - now)
                 await asyncio.sleep(wait_until - now)
         self.last_request_time_per_host[host_key] = now
 
@@ -126,7 +140,7 @@ class BlackcatSession:
 
 
 # SessionContext
-SessionAttrValueT = TypeVar('SessionAttrValueT')
+SessionAttrValueT = TypeVar("SessionAttrValueT")
 
 
 class SessionContext:
@@ -135,13 +149,17 @@ class SessionContext:
     context_name: str
     _data: Mapping[str, Any]
 
-    def __init__(self, session: BlackcatSession, store: ContextStore, context_name: str):
+    def __init__(
+        self, session: BlackcatSession, store: ContextStore, context_name: str
+    ):
         self.session = session
         self.store = store
         self.context_name = context_name
 
     # public
-    async def get(self, attr: str, default: Optional[SessionAttrValueT] = None) -> SessionAttrValueT:
+    async def get(
+        self, attr: str, default: Optional[SessionAttrValueT] = None
+    ) -> SessionAttrValueT:
         rv = self._data.get(attr, default)
         return cast(SessionAttrValueT, rv)
 
@@ -153,14 +171,14 @@ class SessionContext:
     async def load(self) -> None:
         try:
             data = await self.store.load(self.session, self.context_name)
-            logger.info('Load context %s: %r', self.context_name, data)
+            logger.info("Load context %s: %r", self.context_name, data)
         except ContextNotFoundError:
             data = {}
-            logger.info('Context %s not found', self.context_name)
+            logger.info("Context %s not found", self.context_name)
         self._data = data
 
     async def save(self) -> None:
-        logger.info('Save context %s: %r', self.context_name, self._data)
+        logger.info("Save context %s: %r", self.context_name, self._data)
         await self.store.save(self.session, self.context_name, self._data)
 
 
