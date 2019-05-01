@@ -259,7 +259,7 @@ def blackcat(
     blackcat
     """
     init_logging(verbose=verbose)
-    logging.getLogger('botocore').setLevel(logging.WARNG)
+    logging.getLogger('botocore').setLevel(logging.WARN)
 
     # load planners/parsers
     setups = []

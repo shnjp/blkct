@@ -24,13 +24,12 @@ typing-extensions = "*"
 
 [dev-packages]
 coverage = "*"
-flake8 = "*"
-flake8-import-order = "*"
 pytest = "*"
-yapf = "*"
-pipenv = "*"
-autopep8 = "*"
 mypy = "*"
+black = "*"
 
 [requires]
 python_version = "3.7"
+
+[pipenv]
+allow_prereleases = true
