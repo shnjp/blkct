@@ -45,7 +45,7 @@ class FileContentStore(ContentStore):
         assert ext and ext.startswith(".")
         filepath = url_to_path(os.path.join(self.store_root_path, session.session_id), url, ext)
         dirpath, filename = os.path.split(filepath)
-        logger.info("save %s content to %s", url, filepath)
+        logger.info("Save content", url=url, to=filepath)
 
         # prepare directory
         if not os.path.exists(dirpath):

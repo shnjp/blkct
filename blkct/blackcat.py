@@ -55,7 +55,7 @@ class Blackcat:
             self.context_store_factory(),
             session_id=session_id,
         )
-        logger.info("Start session(id=%s)", self.session.session_id)
+        logger.info("Start session", session_id=self.session.session_id)
         try:
             yield self.session
         finally:

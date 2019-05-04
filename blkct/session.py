@@ -68,7 +68,7 @@ class BlackcatSession:
             pass
         else:
             # HTTPで落とす
-            logger.info("Crawl URL: %s", url)
+            logger.info("Crawl URL", url=url)
 
             content = await self.fetch_content(url, check_status)
             if not content:
@@ -84,7 +84,7 @@ class BlackcatSession:
         return cast(BinaryData, rv)
 
     async def dispatch(self, planner: str, args: Mapping[str, Any], **options: Dict[str, Any]) -> None:
-        logger.info("Dispatch %s with args %r (%r)", planner, args, options)
+        logger.info("Dispatch", planner=planner, args=args, options=options)
         await self.scheduler.dispatch(self, planner, args, options)
 
     async def get_context(self, context_name: str) -> "SessionContext":
@@ -99,7 +99,7 @@ class BlackcatSession:
 
     # private
     async def handle_planner(self, planner: str, args: Mapping[str, Any]) -> Any:
-        logger.info("Handle planner %s with args %r", planner, args)
+        logger.info("Handle planner", planner=planner, args=args)
 
         # TODO: check exists
         p = self.blackcat.planners[planner]
@@ -157,14 +157,14 @@ class SessionContext:
     async def load(self) -> None:
         try:
             data = await self.store.load(self.session, self.context_name)
-            logger.info("Load context %s: %r", self.context_name, data)
+            logger.info("Load context", context=self.context_name, data=repr(data))
         except ContextNotFoundError:
             data = {}
-            logger.info("Context %s not found", self.context_name)
+            logger.info("Context not found", context=self.context_name)
         self._data = data
 
     async def save(self) -> None:
-        logger.info("Save context %s: %r", self.context_name, self._data)
+        logger.info("Save context", context=self.context_name, data=repr(self._data))
         await self.store.save(self.session, self.context_name, self._data)
 
 

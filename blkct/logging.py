@@ -1,4 +1,5 @@
 # -*- coding:utf-8 -*-
+import collections
 import logging
 import sys
 from typing import cast
@@ -12,17 +13,69 @@ try:
 except ImportError:
     has_colorama = False
 
+__all__ = ("init_logging", "logger")
+
+
+class BlackcatLoggerAdapter(logging.LoggerAdapter):
+    def process(self, msg, kwargs):
+        exc_info = kwargs.pop("exc_info", None)
+        extra = kwargs.pop("extra", None)
+        stack_info = kwargs.pop("stack_info", False)
+        _structual = kwargs
+
+        if not isinstance(extra, dict):
+            extra = dict()
+        extra.update(self.extra)
+        extra["_kwargs"] = kwargs
+
+        return msg, dict(exc_info=exc_info, extra=extra, stack_info=stack_info)
+
+
+class BlackcatLTSVFormatter(logging.Formatter):
+    def format(self, record) -> str:
+        # dictオブジェクト並び順が保証されない？のでDjango SortedDictを使っている
+        data = collections.OrderedDict()
+        data["level"] = record.levelname
+        data["name"] = record.name
+        data["time"] = record.created
+        if hasattr(record, "session_id"):
+            data["session_id"] = record.session_id
+
+        if record.exc_info:
+            exc_text = self.formatException(record.exc_info)
+            data["exc_info"] = exc_text
+
+        # ログメッセージが辞書の場合には出力データにそのままマッピングする
+        if hasattr(record, "_kwargs"):
+            data["message"] = record.msg
+            data.update(record._kwargs)
+        else:
+            data["message"] = record.msg
+            data["args"] = record.args
+
+        data = self._post_process(record, data)
+
+        # LTSV
+        def _iter(d):
+            for k, v in d.items():
+                if not isinstance(v, str):
+                    v = str(v)
+                v = v.replace("\n", r"\n").replace("\t", r"\t")
+
+                yield f"{k}:{v}"
+
+        return "\t".join(_iter(data))
+
+    def _post_process(self, record, data):
+        return data
+
+
 if has_colorama:
 
-    class NiceColoredLogRecordInterface(Protocol):
-        nice_levelname: str
-        nice_name: str
+    def _colored(color: str, text: str) -> str:
+        return f"{color}{text}{colorama.Style.RESET_ALL}"
 
-    class NiceColoredLogRecord(NiceColoredLogRecordInterface, logging.LogRecord):
-        pass
-
-    class NiceColoredFormatter(logging.Formatter):
-        short_levelname_map = {"DEBUG": "DBUG", "INFO": "INFO", "WARNING": "WARN", "ERROR": "ERRO", "CRITICAL": "CRIT"}
+    class BlackcatColoredLTSVFormatter(BlackcatLTSVFormatter):
         level_color_map = {
             "DEBUG": colorama.Style.DIM + colorama.Fore.WHITE,
             "INFO": colorama.Fore.WHITE,
@@ -30,43 +83,32 @@ if has_colorama:
             "ERROR": colorama.Fore.RED,
             "CRITICAL": colorama.Style.BRIGHT + colorama.Fore.RED + colorama.Back.WHITE,
         }
-        name_color = colorama.Fore.MAGENTA
-        asctime_color = colorama.Style.DIM + colorama.Fore.WHITE
 
-        def _colored(self, color: str, text: str) -> str:
-            return "{}{}{}".format(color, text, colorama.Style.RESET_ALL)
-
-        def formatMessage(self, record: NiceColoredLogRecord) -> str:  # noqa
-            assert isinstance(record, logging.LogRecord)
-
-            record.nice_levelname = self._colored(
-                self.level_color_map[record.levelname], "[{}]".format(self.short_levelname_map[record.levelname])
-            )
-            record.nice_name = self._colored(self.name_color, record.name)
-            if hasattr(record, "asctime"):
-                record.asctime = self._colored(self.asctime_color, record.asctime)
-
-            # py3k
-            return cast(str, self._style.format(record) + colorama.Style.RESET_ALL)
+        def _post_process(self, record, data):
+            data["level"] = _colored(self.level_color_map[record.levelname], record.levelname)
+            data["name"] = _colored(colorama.Fore.MAGENTA, data["name"])
+            return data
 
 
 def init_logging(verbose: bool) -> None:
-    if sys.stderr.isatty():
-        # if we are attached to tty, use colorful.
-        fh = logging.StreamHandler(sys.stderr)
+    # init logging
+    logging.basicConfig(level=logging.DEBUG if verbose else logging.INFO)
 
-        if has_colorama:
-            fh.setFormatter(NiceColoredFormatter("%(nice_levelname)s %(asctime)s %(nice_name)s : %(message)s"))
-        else:
-            fh.setFormatter(logging.Formatter("%(levelname)s %(asctime)s %(name)s : %(message)s"))
-        root_logger = logging.getLogger()
-        root_logger.addHandler(fh)
-        root_logger.setLevel(logging.DEBUG if verbose else logging.WARN)
+    fh = logging.StreamHandler(sys.stderr)
+
+    # if we are attached to tty, use colorful.
+    if sys.stderr.isatty() and has_colorama:
+        fh.setFormatter(BlackcatColoredLTSVFormatter())
     else:
-        # init logging
-        logging.basicConfig(level=logging.DEBUG if verbose else logging.WARN)
+        fh.setFormatter(BlackcatLTSVFormatter())
+    logger.logger.addHandler(fh)
+    logger.logger.propagate = False
+    logger.logger.setLevel(logging.DEBUG if verbose else logging.INFO)
 
 
-logger = logging.getLogger("blckt")
+def set_session_id_to_log(session_id: str) -> None:
+    """blckt loggerにsession_idパラメタを追加する"""
+    logger.extra["session_id"] = session_id
 
-__all__ = ("NiceColoredFormatter", "init_logging", "logger")
+
+logger = BlackcatLoggerAdapter(logging.getLogger("blckt"), {})

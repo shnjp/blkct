@@ -12,7 +12,7 @@ from gettext import gettext as _
 from typing import TYPE_CHECKING, TypeVar, cast
 
 from .blackcat import Blackcat
-from .logging import init_logging, logger
+from .logging import init_logging, logger, set_session_id_to_log
 from .setup import merge_setups
 from .utils import make_new_session_id
 
@@ -74,7 +74,7 @@ def _make_awsbatch_scheduler(args: argparse.Namespace) -> Scheduler:
     """
     from .scheduler.awsbatch_scheduler import AWSBatchScheduler
 
-    logger.info("make AWSBatchScheduler: %s, %s", args.job_definition, args.job_queue)
+    logger.info("make AWSBatchScheduler", job_definition=args.job_definition, job_queue=args.job_queue)
 
     return AWSBatchScheduler(args.job_definition, args.job_queue)
 
@@ -97,7 +97,7 @@ def _make_file_content_store(args: argparse.Namespace) -> ContentStore:
     """
     from .content_store.file_content_store import FileContentStore
 
-    logger.info("make FileContentStore at %s", args.content_store_path)
+    logger.info("make FileContentStore", path=args.content_store_path)
 
     return FileContentStore(store_root_path=args.content_store_path)
 
@@ -120,7 +120,7 @@ def _make_s3_content_store(args: argparse.Namespace) -> ContentStore:
     """
     from .content_store.s3_content_store import S3ContentStore
 
-    logger.info("make S3ContentStore at %s:%s", args.s3_content_bucket, args.s3_content_prefix)
+    logger.info("make S3ContentStore", bucket=args.s3_content_bucket, content_prefix=args.s3_content_prefix)
 
     return S3ContentStore(args.s3_content_bucket, args.s3_content_prefix)
 
@@ -280,7 +280,7 @@ def blackcat(
         else:
             module_name, setup_name = t[0], 'blackcat_setup'
 
-        logger.info(f'Load module {module_name}:{setup_name}')
+        logger.info("Load module", module=f"{module_name}:{setup_name}")
         module = importlib.import_module(module_name)
         setup = getattr(module, setup_name)
         setups.append(setup)
@@ -297,6 +297,7 @@ def blackcat(
 
     # make session id
     session_id = session_id or make_new_session_id()
+    set_session_id_to_log(session_id)
 
     # run
     loop = asyncio.get_event_loop()

@@ -40,13 +40,13 @@ class AWSBatchScheduler(Scheduler):
             self.plans.append((session, planner, args))
             return
 
-        logger.info("dispatch job %s:%r", planner, args)
+        logger.info("Dispatch job", planner=planner, args=args)
 
         if options.get(OPTIONS_IN_PROCESS):
             self.plans.append((session, planner, args))
         else:
             # TODO:blockしている
-            logger.info("submit job %s:%r", planner, args)
+            logger.info("Submit job", planner=planner, args=args)
             json_data = dump_json(args)
             response = batch_client.submit_job(
                 jobName=f"{session.session_id}_{planner}_{md5(json_data.encode('utf-8')).hexdigest()}",
@@ -56,7 +56,7 @@ class AWSBatchScheduler(Scheduler):
                 containerOverrides={"environment": [{"name": "BLKCT_SESSION_ID", "value": session.session_id}]},
             )
             job_id = response["jobId"]
-            logger.info("  -> jobId: %s", job_id)
+            logger.info("Job submitted", job_id=job_id)
 
     async def run(self) -> None:
         if not self.plans:
