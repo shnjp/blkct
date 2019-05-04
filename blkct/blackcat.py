@@ -88,10 +88,8 @@ class Blackcat:
 
     def make_aio_session(self) -> aiohttp.ClientSession:
         """aiohttp.ClientSessionを作って返す"""
-        session = aiohttp.ClientSession(  # type: ignore
-            cookie_jar=aiohttp.CookieJar(), headers={"User-Agent": self.user_agent}
-        )
-        return cast(aiohttp.ClientSession, session)
+        session = aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar(), headers={"User-Agent": self.user_agent})
+        return session
 
 
 def reraise(exc_type: Type[BaseException], exc_value: Exception, tb: Optional[TracebackType] = None) -> None:
