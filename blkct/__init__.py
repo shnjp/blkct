@@ -12,3 +12,4 @@ __all__ = ("BlackcatSetup", "Content", "CrawlPrioirty", "URL")
 
 if TYPE_CHECKING:
     from .session import BlackcatSession
+    from .typing import BinaryData
