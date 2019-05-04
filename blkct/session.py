@@ -116,7 +116,7 @@ class BlackcatSession:
         if last_request:
             wait_until = last_request + self.blackcat.request_interval
             if wait_until > now:
-                logger.debug("sleep %f secs", wait_until - now)
+                logger.debug(f"sleep {wait_until - now} secs")
                 await asyncio.sleep(wait_until - now)
         self.last_request_time_per_host[host_key] = now
 
