@@ -108,7 +108,7 @@ class BlackcatSession:
     async def fetch_content(self, url: URL, check_status: bool) -> Optional[FetchedContent]:
         # ホストにアクセスする間隔についてwaitを入れる
         if url.scheme not in ("http", "https") or not url.host or not url.port:
-            return None
+            raise CrawlerError(f"url not supported: {url:!r}")
 
         now = time.time()
         host_key = (url.host, url.port)
@@ -124,7 +124,7 @@ class BlackcatSession:
         async with self.aio_session.get(url) as resp:
             if check_status:
                 if resp.status != 200:
-                    raise BadStatusCode(resp.status)
+                    raise BadStatusCode(resp.status, url)
 
             return FetchedContent(resp.status, resp.headers, await resp.read())
 
