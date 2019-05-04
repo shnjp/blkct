@@ -41,7 +41,7 @@ class Blackcat:
         self.context_store_factory = context_store_factory
         self.session = None
         self.user_agent = user_agent or "blkct crawler"
-        self.request_interval = 5.0
+        self.request_interval = 2.5
 
     # public
     @contextlib.asynccontextmanager
