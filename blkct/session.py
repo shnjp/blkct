@@ -83,7 +83,7 @@ class BlackcatSession:
         rv = await self.crawl(url, parser=parse_image, check_status=check_status)
         return cast(BinaryData, rv)
 
-    async def dispatch(self, planner: str, args: Mapping[str, Any], **options: Dict[str, Any]) -> None:
+    async def dispatch(self, planner: str, args: Mapping[str, Any], **options: Any) -> None:
         logger.info("Dispatch", planner=planner, args=args, options=options)
         await self.scheduler.dispatch(self, planner, args, options)
 
