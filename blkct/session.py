@@ -108,7 +108,7 @@ class BlackcatSession:
     async def fetch_content(self, url: URL, check_status: bool) -> Optional[FetchedContent]:
         # ホストにアクセスする間隔についてwaitを入れる
         if url.scheme not in ("http", "https") or not url.host or not url.port:
-            raise CrawlerError(f"url not supported: {url:!r}")
+            raise CrawlerError(f"url not supported: {url!r}")
 
         now = time.time()
         host_key = (url.host, url.port)
